@@ -13,7 +13,7 @@ class Volume(object):
                                      region_name=region_name)
         self.api_version = api_version
 
-    def create_volume(self, size, name, volume_type=None, availability_zone=None, description=None):
+    def create(self, size, name, volume_type=None, availability_zone=None, description=None):
         if self.api_version == 1:
             # Create a volume on version 1
             self.volume = self.cinder.volumes.create(size,
@@ -45,41 +45,64 @@ class Volume(object):
             raise OSVolumeError('Volume %s with ID %s took too long to become available' % (name, self.get_id()))
         logging.debug('Volume %s with ID %s is now available', name, self.get_id())
 
-    def delete_volume(self):
+    def delete(self, volume_id=None):
+        volume = self.get(volume_id)
         # Wait 10 seconds for the volume to delete
         for _ in range(10):
             try:
-                self.cinder.volumes.force_delete(self.volume)
-                logging.debug('Deleted volume %s with ID %s', self.get_name(), self.get_id())
+                self.cinder.volumes.force_delete(volume.id)
+                logging.debug('Deleted volume %s with ID %s', volume.name, volume.id)
                 return True
             except Exception:
                 time.sleep(1)
         # The volume has failed to delete
-        logging.error('Failed to delete volume %s with ID %s', self.get_name(), self.get_id())
+        logging.error('Failed to delete volume %s with ID %s', volume.name, volume.id)
         return False
 
-    def load_volume(self, volume_id):
+    def load(self, volume_id):
         # Load in a volume
         self.volume = self.cinder.volumes.get(volume_id)
 
-    def get_volume(self, volume_id=None):
-        if volume_id:
-            return self.cinder.volumes.get(volume_id).to_dict()
-        if self.volume:
-            return self.cinder.volumes.get(self.get_id()).to_dict()
-        return None
-
-    def get_id(self):
-        return self.volume.id
-
-    def get_name(self):
-        return self.volume.display_name if self.api_version == 1 else self.volume.name
+    def list(self, project_only=True):
+        if project_only:
+            volumes = self.cinder.volumes.list()
+        else:
+            volumes = []
+            volumes_chunk = self.cinder.volumes.list(search_opts={"all_tenants": 1},
+                                                     limit=1000)
+            while len(volumes_chunk) > 0:
+                volumes += volumes_chunk
+                volumes_chunk = self.cinder.volumes.list(search_opts={"all_tenants": 1},
+                                                         limit=1000,
+                                                         marker=volumes_chunk[-1].id)
+        volume_info = []
+        for volume in volumes:
+            volume_info.append({
+                'id': volume.id,
+                'name': volume.name
+            })
+        return volume_info
 
     def list_availability_zones(self):
         return self.cinder.availability_zones.list()
 
-    def list_volumes(self):
-        return self.cinder.volumes.list()
+    def get(self, volume_id=None, use_cached=False):
+        if volume_id:
+            return self.cinder.volumes.get(volume_id)
+        try:
+            if use_cached:
+                return self.volume
+            return self.cinder.volumes.get(self.get_id())
+        except AttributeError:
+            raise OSVolumeError('No volume supplied and no cached volume')
+
+    def get_name(self, volume_id=None, use_cached=False):
+        volume = self.get(volume_id, use_cached)
+        return volume.display_name if self.api_version == 1 else volume.name
+
+    def get_id(self):
+        volume = self.get(use_cached=True)
+        return volume.id
 
 
 class Quota(object):
@@ -93,10 +116,10 @@ class Quota(object):
                                      region_name=region_name)
         self.api_version = api_version
 
-    def get_quota(self, tenant_id):
+    def get(self, tenant_id):
         return self.cinder.quotas.get(tenant_id).to_dict()
 
-    def set_quota(self, tenant_id, **quotas):
+    def set(self, tenant_id, **quotas):
         self.cinder.quotas.update(tenant_id, **quotas)
 
     def set_defaults(self, tenant_id):
@@ -104,4 +127,7 @@ class Quota(object):
 
 
 class OSVolumeError(Exception):
-    pass
+
+    def __init__(self, message):
+        super(OSVolumeError, self).__init__(message)
+        self.message = message

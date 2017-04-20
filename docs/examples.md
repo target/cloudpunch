@@ -9,7 +9,7 @@ CloudPunch does not include a GUI and returns results in a JSON or YAML format. 
 I have run a test that included iPerf and ping tests. The test was configured to run many instances. I only care about the totals and averages of the results given by each instance. The results were saved to the file `networkping.json` using the `-o` option on the CloudPunch CLI.
 
 ```
-cloudpunch-post -f networkping.json
+cloudpunch post networkping.json
 
 2016-10-03 15:03:29 INFO Converted results:
 iperf:
@@ -27,6 +27,30 @@ ping:
     duration: 18000.0
     latency: 290.52
 ```
+
+## Using Loadbalancers with CloudPunch
+
+CloudPunch supports the creation of loadbalancers (both v1 and v2) in front of servers and/or clients. The loadbalancers are added on each network created. They will use fixed IP addresses on network modes single-network and single-router and use floating IP addresses on the network mode full. To enable the use of loadbalancers add the following to the environment file:
+
+```yaml
+server:
+  loadbalancer:
+    enable: true
+    method: ROUND_ROBIN
+    frontend:
+      protocol: HTTP
+      port: 80
+    backend:
+      protocol: HTTP
+      port: 80
+    healthmonitor:
+      type: PING
+      delay: 5
+      timeout: 5
+      retries: 3
+```
+
+This will enable the creation of loadbalancers in front of servers. The loadbalancer will use the algorithm ROUND_ROBIN and listen for HTTP on port 80 and forward to HTTP on port 80. The health monitor will use ping every 5 seconds and mark a server as inactive after 3 failed pings.
 
 ## Using Volumes with CloudPunch
 
@@ -166,7 +190,7 @@ By default CloudPunch will cleanup resources when completed. However if cases wh
 cleanup_resources: false
 ```
 
-When disabled a cleanup file will instead be created that contains all the IDs of resources created. Run `CloudPunch-cleanup` or `CloudPunch/cleanup.py`. The cleanup file is supplied with the `-f` option.
+When disabled a cleanup file will instead be created that contains all the IDs of resources created. Run `cloudpunch cleanup cleanup-file.json`
 
 ## Recovery from Unregistered Instances
 

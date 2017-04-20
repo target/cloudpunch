@@ -1,6 +1,19 @@
 # Change Log
 A list of notable changes will be documented here
 
+## 1.3.0 - 2017-04-20
+### Added
+- Loadbalancer support in front of servers and/or clients. See Configuration documentation for more information
+- Custom test files can now be added into a `tests/` directory inside the current working directory. Any test files inside the configuration will be pushed over to the slaves to run
+- cloudpunch post now supports formatting results to json, yaml, table, and csv
+- cloudpunch post now calculates mean, median, mode, range, and total instead of just mean and total
+- cloudpunch cleanup can now search for resources left over by previous cloudpunch runs. Use `cloudpunch cleanup search`
+
+### Changed
+- cloudpunch-cleanup and cloudpunch-post have now been integrated into the main cloudpunch command. To run a test use cloudpunch run, to cleanup use cloudpunch cleanup, and to post process use cloudpunch post
+- cloudpunch-master and cloudpunch-slave have also been integrated into the main cloudpunch command. Use cloudpunch master to start the master and cloudpunch slave to start a slave
+- All official tests now have a default configuration
+
 ## 1.2.0 - 2016-12-21
 ### Added
 - Ability to have instances boot from volume (see environment file)

@@ -1,6 +1,6 @@
 # CloudPunch Tests
 
-Tests that live under `cp_slave/` will be documented here.
+Tests that live under `cloudpunch/slave` will be documented here.
 
 ## FIO
 
@@ -11,7 +11,6 @@ FIO is short for Flexible IO, a versatile IO workload generator. FIO is widely u
 | Option           | Supported |
 | ---------------- | --------- |
 | overtime_results | Yes       |
-| datadog          | Yes       |
 
 ### Configuration
 
@@ -31,15 +30,6 @@ The following are always put on the command line and cannot be changed:
 
 The following configuration will load in the file job.fio and run this file:
 
-
-```json
-{
-    "fio": {
-        "test_file": "job.fio"
-    }
-}
-```
-
 ```yaml
 fio:
   test_file: job.fio
@@ -57,31 +47,12 @@ The following are always put on the command line and cannot be changed:
 --name=fiotest --time_based --output-format=json
 ```
 
-##### Sample Configuration
+##### Default Configuration
 
 The following configuration will translate into the following command line options:
 
 ```
 --randrepeat=1 --ioengine=libaio --direct=1 --filename=/fiotest --bsrange=4k-8k --iodepth=8 --size=1G --readwrite=randrw --rwmixread=50 --numjobs=1 --status-interval=1 --runtime=300
-```
-
-```json
-{
-    "fio": {
-        "randrepeat": 1,
-        "ioengine": "libaio",
-        "direct": 1,
-        "filanem": "/fiotest",
-        "bsrange": "4k-8k",
-        "iodepth": 8,
-        "size": "1G",
-        "readwrite": "randrw",
-        "rwmixread": 50,
-        "numjobs": 1,
-        "status-interval": 1,
-        "runtime": 300
-    }
-}
 ```
 
 ```yaml
@@ -103,47 +74,6 @@ fio:
 ### Results
 
 ##### Overtime Results
-
-```json
-[{
-    "hostname": "cloudpunch-6924523-master-s1",
-    "results": {
-        "fio": {
-            "fiotest": [{
-                "latency_msec": 0.59629,
-                "iops": 6518.19,
-                "bandwidth_bytes": 26059,
-                "total_bytes": 23636,
-                "time": 1475079260
-            }, {
-                "latency_msec": 0.6225,
-                "iops": 6560.09,
-                "bandwidth_bytes": 26213,
-                "total_bytes": 23776,
-                "time": 1475079260
-            }, {
-                "latency_msec": 0,
-                "iops": 6438.64,
-                "bandwidth_bytes": 25744,
-                "total_bytes": 49300,
-                "time": 1475079261
-            }, {
-                "latency_msec": 0.63661,
-                "iops": 6430.81,
-                "bandwidth_bytes": 25708,
-                "total_bytes": 49232,
-                "time": 1475079261
-            }, {
-                "latency_msec": 0,
-                "iops": 6458.09,
-                "bandwidth_bytes": 25821,
-                "total_bytes": 75476,
-                "time": 1475079262
-            }]
-        }
-    }
-}]
-```
 
 ```yaml
 - hostname: cloudpunch-6924523-master-s1
@@ -179,30 +109,6 @@ fio:
 
 ##### Summary Results
 
-```json
-[{
-    "hostname": "cloudpunch-5454269-master-s1",
-    "results": {
-        "fio": {
-            "fiotest": {
-                "read": {
-                    "latency_msec": 97.28486333333333,
-                    "iops": 43.309999999999995,
-                    "bandwidth_bytes": 166000,
-                    "total_bytes": 1848000
-                },
-                "write": {
-                    "latency_msec": 76.62147999999999,
-                    "iops": 36.88666666666667,
-                    "bandwidth_bytes": 144000,
-                    "total_bytes": 1620000
-                }
-            }
-        }
-    }
-}]
-```
-
 ```yaml
 - hostname: cloudpunch-5454269-master-s1
   results:
@@ -230,7 +136,6 @@ iPerf3 is used for network throughput testing. See [here](https://iperf.fr/iperf
 | Option           | Supported |
 | ---------------- | --------- |
 | overtime_results | Yes       |
-| datadog          | Yes       |
 
 #### Server vs Client
 
@@ -264,67 +169,23 @@ The client configuration is designed to run a random amount of bandwidth over a 
 
 - `mss` - The maximum segment size of packets. This is usually 1460 or 8960
 
-##### Sample Configuration
-
-```json
-{
-    "iperf": {
-        "bps_min": 10,
-        "bps_max": 500,
-        "duration_min": 1,
-        "duration_max": 3,
-        "iterations": 500,
-        "threads": 1,
-        "max_throughput": false,
-        "mss": 1460
-    }
-}
-```
+##### Default Configuration
 
 ```yaml
 iperf:
-  bps_min: 10
-  bps_max: 500
-  duration_min: 1
-  duration_max: 3
-  iterations: 500
+  bps_min: 100000
+  bps_max: 100000000
+  duration_min: 10
+  duration_max: 30
+  iterations: 10
   threads: 1
-  max_throughput: false
+  max_throughput: true
   mss: 1460
 ```
 
 ### Results
 
 ##### Overtime Results
-
-```json
-[{
-    "hostname": "cloudpunch-8678796-master-c1",
-    "results": {
-        "iperf": [{
-            "bps": 1241740000.0,
-            "retransmits": 802,
-            "time": 1475078878
-        }, {
-            "bps": 1159130000.0,
-            "retransmits": 207,
-            "time": 1475078879
-        }, {
-            "bps": 973007000.0,
-            "retransmits": 227,
-            "time": 1475078880
-        }, {
-            "bps": 1236210000.0,
-            "retransmits": 116,
-            "time": 1475078881
-        }, {
-            "bps": 1183880000.0,
-            "retransmits": 411,
-            "time": 1475078882
-        }]
-    }
-}]
-```
 
 ```yaml
 - hostname: cloudpunch-8678796-master-c1
@@ -349,18 +210,6 @@ iperf:
 
 ##### Summary Results
 
-```json
-[{
-    "hostname": "cloudpunch-9686117-master-c1",
-    "results": {
-        "iperf": {
-            "bps": 63472446.666666664,
-            "retransmits": 0
-        }
-    }
-}]
-```
-
 ```yaml
 - hostname: cloudpunch-9686117-master-c1
   results:
@@ -378,7 +227,6 @@ Ping is used solely for latency testing. It often is used with iPerf3 to see how
 | Option           | Supported |
 | ---------------- | --------- |
 | overtime_results | Yes       |
-| datadog          | Yes       |
 
 ### Configuration
 
@@ -392,36 +240,10 @@ Ping can be ran with `server_client_mode` enabled or disabled. If enabled ping w
 
 ##### Default Configuration
 
-If no configuration exists for ping, the following will be used:
-
-```json
-{
-    "ping": {
-        "target": "google.com",
-        "duration": 10
-    }
-}
-```
-
 ```yaml
 ping:
   target: google.com
   duration: 10
-```
-
-##### Sample Configuration
-
-```json
-{
-    "ping": {
-        "duration": 300
-    }
-}
-```
-
-```yaml
-ping:
-  duration: 300
 ```
 
 ### Results
@@ -429,35 +251,6 @@ ping:
 Latency is in msec
 
 ##### Overtime Results
-
-```json
-[{
-    "hostname": "cloudpunch-3693039-master-c1",
-    "results": {
-        "ping": [{
-            "latency": 0.874,
-            "target": "10.0.0.6",
-            "time": 1470152735.793147
-        }, {
-            "latency": 0.256,
-            "target": "10.0.0.6",
-            "time": 1470152736.792701
-        }, {
-            "latency": 0.23,
-            "target": "10.0.0.6",
-            "time": 1470152737.793253
-        }, {
-            "latency": 0.224,
-            "target": "10.0.0.6",
-            "time": 1470152738.792618
-        }, {
-            "latency": 0.2,
-            "target": "10.0.0.6",
-            "time": 1470152739.792757
-        }]
-    }
-}]
-```
 
 ```yaml
 - hostname: cloudpunch-3693039-master-c1
@@ -482,19 +275,6 @@ Latency is in msec
 
 ##### Summary Results
 
-```json
-[{
-    "hostname": "cloudpunch-3803825-master-c1",
-    "results": {
-        "ping": {
-            "duration": 5,
-            "latency": 0.2032,
-            "target": "10.0.0.6"
-        }
-    }
-}]
-```
-
 ```yaml
 - hostname: cloudpunch-3803825-master-c1
   results:
@@ -513,7 +293,6 @@ Stress-ng is used for CPU usage tests. See [here](http://kernel.ubuntu.com/~ckin
 | Option           | Supported |
 | ---------------- | --------- |
 | overtime_results | No        |
-| datadog          | Yes       |
 
 
 ### Configuration
@@ -540,23 +319,7 @@ The stress-ng configuration is designed to run a random amount of CPU usage over
 
 - `delay` - The time between each iteration in seconds
 
-##### Sample Configuration
-
-```json
-{
-    "stress": {
-        "nice": 0,
-        "cpu-min": 1,
-        "cpu-max": 2,
-        "duration-min": 5,
-        "duration-max": 10,
-        "load-min": 25,
-        "load-max": 90,
-        "iterations": 5,
-        "delay": 5
-    }
-}
-```
+##### Default Configuration
 
 ```yaml
 stress:
@@ -577,35 +340,6 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
 
 ##### Sample Results
 
-```json
-[{
-    "hostname": "cloudpunch-8547561-c-r1-n1-c8",
-    "results": {
-        "stress": [{
-            "load": 69,
-            "cpu": 1,
-            "timeout": 5
-        }, {
-            "load": 65,
-            "cpu": 1,
-            "timeout": 8
-        }, {
-            "load": 64,
-            "cpu": 1,
-            "timeout": 5
-        }, {
-            "load": 27,
-            "cpu": 1,
-            "timeout": 7
-        }, {
-            "load": 53,
-            "cpu": 2,
-            "timeout": 5
-        }]
-    }
-}]
-```
-
 ```yaml
 - hostname: cloudpunch-8547561-c-r1-n1-c8
   results:
@@ -625,4 +359,70 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
       - load: 53
         cpu: 2
         timeout: 5
+```
+
+## JMeter
+
+Apache JMeter is a java-based application used to test web server load. See [here](https://jmeter.apache.org/) for official JMeter documentation
+
+### CloudPunch Configuration Support
+
+| Option           | Supported |
+| ---------------- | --------- |
+| overtime_results | No        |
+
+### Configuration
+
+All configuration lives under the `jmeter` key inside the configuration file
+
+#### Server Configuration
+
+##### Server Configuration Key Reference
+
+- `gunicorn` - Gunicorn is used as the web server to support proper multiprocessing. `gunicorn` has the following sub-keys:
+
+  - `workers` - the number of workers. Gunicorn recommends (2 * number-of-cores) + 1 as a good starting point
+
+  - `threads` - the number of threads per worker. It is recommended to use around 4 threads per worker
+
+###### Default Server Configuration
+
+```yaml
+jmeter:
+  gunicorn:
+    workers: 5
+    threads: 4
+```
+
+#### Client Configuration
+
+##### Client Configuration Key Reference
+
+- `threads` - the number of threads to start for http requests
+
+- `ramp-up` - the number of seconds for the threads to start
+
+- `duration` - the number of seconds to run the test for
+
+###### Default Client Configuration
+
+```yaml
+jmeter:
+  threads: 10
+  ramp-up: 0
+  duration: 60
+```
+
+### Results
+
+##### Summary Results
+
+```yaml
+- hostname: cloudpunch-5487841-c-master-n1-c1
+  results:
+    jmeter:
+      error_count: 2405
+      error_percent: 2.07
+      latency_msec: 15
+      requests-per-second: 1937.7
 ```

@@ -47,3 +47,4 @@ CloudPunch uses other open source projects:
 - Redis - [BSD License](http://redis.io/topics/license)
 - FIO - [GPL v2](https://raw.githubusercontent.com/axboe/fio/master/MORAL-LICENSE)
 - iPerf3 - [BSD License](https://raw.githubusercontent.com/esnet/iperf/master/LICENSE)
+- JMeter - [Apache License](https://www.apache.org/licenses/)
