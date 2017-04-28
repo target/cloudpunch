@@ -66,6 +66,12 @@ Single router uses the instance's IP addresses and not floating IP addresses (th
 
 ![Single Network](images/single-network.png "Single Network")
 
+## Load Balancer Network
+
+When creation of a load balancer is included in the environment file, a balancer will be created for each network. All instances on this network will be added as members to said load balancer. When full network is used, the load balancers will use floating IP addresses; all other network modes will use fixed IP addresses. See below for a diagram showing a load balancer in front of servers when using the single router network mode.
+
+![Load Balanced Servers](images/loadbalancer.png "Load Balanced Servers")
+
 ## Limitations
 
 - No graphical interface

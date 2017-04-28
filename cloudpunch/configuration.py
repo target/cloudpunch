@@ -1,6 +1,10 @@
 import os
 import yaml
 import logging
+import collections
+
+# List of offical files inside cp_slave (not test files)
+OFFICIAL_FILES = ['__init__', 'cp_slave', 'sysinfo', 'flaskapp']
 
 
 class Configuration(object):
@@ -28,11 +32,6 @@ class Configuration(object):
                 'type': 'ask',
                 'threshold': 80,
                 'retries': 12
-            },
-            'datadog': {
-                'enable': False,
-                'api_key': '',
-                'tags': ['cloudpunch']
             }
         }
         read_config = {}
@@ -47,8 +46,33 @@ class Configuration(object):
             logging.debug('Using default CloudPunch configuration')
 
         # Merge default and config file
-        self.final_config = default_config.copy()
-        self.final_config.update(read_config)
+        self.merge_configs(default_config, read_config)
+        self.final_config = default_config
+
+        # Check official tests (tests in slave/)
+        slave_dir = os.path.dirname(os.path.realpath(__file__)) + '/slave'
+        files = os.listdir(slave_dir)
+        official_tests = []
+        for filename in files:
+            name, extension = os.path.splitext(filename)
+            if extension == '.py' and name not in OFFICIAL_FILES:
+                official_tests.append(name)
+        # Check unofficial tests (tests in config)
+        unofficial_tests = []
+        for test in self.final_config['test']:
+            if test not in official_tests:
+                unofficial_tests.append(test)
+        # We have unofficial tests to find in the tests directory (current-directory/tests)
+        if unofficial_tests:
+            self.final_config['test_files'] = {}
+            test_dir = 'tests'
+            for unofficial_test in unofficial_tests:
+                test_file_path = '%s/%s.py' % (test_dir, unofficial_test)
+                if not os.path.isfile(test_file_path):
+                    raise ConfigError('Unable to find unofficial test %s in tests directory' % unofficial_test)
+                with open(test_file_path) as f:
+                    test_file_data = f.read()
+                self.final_config['test_files'][unofficial_test] = test_file_data
 
         # Check if server_client_mode is enabled when split mode is enabled
         if split_mode and not self.final_config['server_client_mode']:
@@ -88,12 +112,14 @@ class Configuration(object):
             self.final_config['flavor_file'] = flavor_data
 
         # Add fio test_file to config if specified
-        if ('fio' in self.final_config and 'test_file' in self.final_config['fio'] and
+        if ('fio' in self.final_config['test'] and
+                'fio' in self.final_config and 'test_file' in self.final_config['fio'] and
                 self.final_config['fio']['test_file']):
             test_file = self.final_config['fio']['test_file']
             if not os.path.isfile(test_file):
                 raise ConfigError('FIO test file %s not found' % test_file)
-            test_file_data = open(test_file, 'r').read()
+            with open(test_file, 'r') as f:
+                test_file_data = f.read()
             self.final_config['fio']['test_file_data'] = test_file_data
 
         # Check numbers in configuration
@@ -142,8 +168,17 @@ class Configuration(object):
                 raise ConfigError('Number of instances per network cannot be greater than 62500'
                                   ' if network mode is single-router or single-network')
 
+    def merge_configs(self, default, new):
+        for key, value in new.iteritems():
+            if (key in default and isinstance(default[key], dict) and
+                    isinstance(new[key], collections.Mapping)):
+                self.merge_configs(default[key], new[key])
+            else:
+                default[key] = new[key]
+
     def loadfile(self, data_file, label='Configuration'):
-        contents = open(data_file).read()
+        with open(data_file) as f:
+            contents = f.read()
         try:
             data = yaml.load(contents)
         except yaml.YAMLError as e:
@@ -155,4 +190,7 @@ class Configuration(object):
 
 
 class ConfigError(Exception):
-    pass
+
+    def __init__(self, message):
+        super(ConfigError, self).__init__(message)
+        self.message = message

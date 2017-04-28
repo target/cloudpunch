@@ -51,11 +51,7 @@ All rules must pass
 Any documentation that is effected by the requested changes must be updated. Make sure to check for any spelling or grammatical errors.
 
 Documentation that should always be updated:
-- Bump version in:
-  - `docs/version`
-  - `cloudpunch/cloudpunch.py`
-  - `cloudpunch/cleanup.py`
-  - `cloudpunch/post.py`
+- Bump version in `cloudpunch/version`
 - CHANGELOG.md
 
 #### 5. Create Pull Request

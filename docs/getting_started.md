@@ -15,7 +15,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Local Machine
     - Python 2.7
-    - PIP: tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient, datadog
+    - PIP: tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient
     - Packages: none
 
 
@@ -27,7 +27,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Slave (OpenStack image)
     - Python 2.7
-    - PIP: datadog
+    - PIP: none
     - Packages: none
 
 The OpenStack image used should contain all required software for the best staging time. If the image is missing software, the `shared_userdata` and `userdata` keys for respective roles will have to contain the commands required to install the missing software. The CloudPunch software must be contained under `/opt/cloudpunch`
@@ -46,9 +46,8 @@ The OpenStack image used should contain all required software for the best stagi
     - python-neutronclient - handles interaction with OpenStack neutron
     - python-cinderclient - handles interaction with OpenStack cinder
     - flask - runs master server's API
-    - redis - handles interaction with local redis server
+    - redis - handles interaction with local redis server on the master server
     - requests - handles API calls to master server
-    - datadog - sends visualization data to datadog
 
 
 - Packages
@@ -68,31 +67,7 @@ CloudPunch is designed to be dynamic enough to work in any OpenStack environment
 
 ### Creating Configuration
 
-CloudPunch uses a JSON or YAML file to determine the overall configuration. See [Configuration File](./configuration.md#configuration-file) for more in-depth information about this file. Create a file named `config.json` with the following contents:
-
-```json
-{
-    "cleanup_resources": true,
-    "server_client_mode": true,
-    "servers_give_results": true,
-    "overtime_results": false,
-    "instance_threads": 5,
-    "retry_count": 30,
-    "network_mode": "full",
-    "number_routers": 2,
-    "networks_per_router": 2,
-    "instances_per_network": 2,
-    "test": [
-        "ping"
-    ],
-    "test_mode": "concurrent",
-    "ping": {
-        "duration": 5
-    }
-}
-```
-
-Or a file named `config.yaml` with the following conents:
+CloudPunch uses a JSON or YAML file to determine the overall configuration. See [Configuration File](./configuration.md#configuration-file) for more in-depth information about this file. Create a file named `config.yaml` with the following contents:
 
 ```yaml
 cleanup_resources: true
@@ -116,41 +91,19 @@ This configuration file will run the test ping for a duration of 5 seconds. It w
 
 ### Creating Environment
 
-The environment file is also a JSON or YAML file but instead is used to determine values that change based on the OpenStack environment. These values will change greatly for each OpenStack setup. See [Environment Files](./configuration.md#environment-files) for more in-depth information about this file. Create a file named `environment.json` with the following contents:
-
-```json
-{
-    "image_name": "CentOS-7",
-    "master": {
-        "flavor": "m1.small",
-        "userdata": [
-            "systemctl start redis.service"
-        ]
-    },
-    "server": {
-        "flavor": "m1.small",
-    },
-    "client": {
-        "flavor": "m1.small",
-    }
-}
-```
-
-Or create a file named `environment.yaml` with the following contents:
+The environment file is also a JSON or YAML file but instead is used to determine values that change based on the OpenStack environment. These values will change greatly for each OpenStack setup. See [Environment Files](./configuration.md#environment-files) for more in-depth information about this file. Create a file named `environment.yaml` with the following contents:
 
 ```yaml
 image_name: CentOS-7
 master:
   flavor: m1.small
-  userdata:
-    - systemctl start redis.service
 server:
   flavor: m1.small
 client:
   flavor: m1.small
 ```
 
-This assumes that the image CentOS-7 and the m1.small flavor exists on the OpenStack environment. The userdata under master is used to setup the CentOS 7 image to start the redis server. Note that this is a very basic environment file and will not be able to run a test without a custom OpenStack image.
+This assumes that the image CentOS-7 and the m1.small flavor exists on the OpenStack environment. Note that this is a very basic environment file and will not be able to run a test without a custom OpenStack image.
 
 ### Creating OpenStack Image
 
@@ -169,25 +122,54 @@ The following is a sample Packer configuration to create a base CloudPunch image
         "ssh_username": "centos",
         "image_name": "cloudpunch",
         "source_image": "PUT IMAGE ID HERE",
-        "flavor": "m1.small"
+        "flavor": "m1.small",
+        "user_data": "#cloud-config\n\nruncmd:\n - sed -i '/Defaults    requiretty/d' /etc/sudoers\n"
     }],
     "provisioners": [{
         "type": "shell",
-        "inline": [
-            "wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm",
-            "sudo yum install -y epel-release-latest-7.noarch.rpm",
-            "sudo yum install -y gcc make gcc-c++ python-pip python-devel redis libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio",
-            "wget http://kernel.ubuntu.com/~cking/tarballs/stress-ng/stress-ng-0.03.11.tar.gz",
-            "tar zxf stress-ng-0.03.11.tar.gz",
-            "cd stress-ng-0.03.11",
-            "sudo make",
-            "sudo make install",
-            "git clone https://github.com/target/cloudpunch.git /tmp/cloudpunch",
-            "sudo pip install -r /tmp/cloudpunch/requirements-master.txt",
-            "sudo pip install -r /tmp/cloudpunch/requirements-slave.txt"
-        ]
+        "script": "build-cloudpunch.sh"
     }]
 }
+```
+
+```bash
+#!/bin/bash
+
+# Update image
+sudo yum clean all
+sudo yum update -y
+
+# Install packages
+curl -O https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install epel-release-latest-7.noarch.rpm
+sudo yum-config-manager --enable epel
+sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel redis libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio
+
+# Start services
+sudo systemctl enable redis
+
+# Install jmeter
+sudo yum install -y java-1.8.0-openjdk
+sudo mkdir -p /opt
+curl -s http://www.gtlib.gatech.edu/pub/apache//jmeter/binaries/apache-jmeter-3.1.tgz > /tmp/jmeter.tar.gz
+sudo tar -zx -f /tmp/jmeter.tar.gz -C /opt
+sudo ln -s /opt/apache-jmeter-3.1/bin/jmeter /usr/bin/jmeter
+
+# Install stress-ng
+curl -s http://kernel.ubuntu.com/~cking/tarballs/stress-ng/stress-ng-0.07.27.tar.gz > /tmp/stress-ng.tar.gz
+tar -zx -f /tmp/stress-ng.tar.gz -C /tmp
+cd /tmp/stress-ng-0.07.27/ || exit
+sudo make
+sudo make install
+
+# Install CloudPunch
+sudo mkdir -p /opt/cloudpunch
+git clone https://github.com/target/cloudpunch.git /opt/cloudpunch
+cd /opt/cloudpunch || exit
+sudo pip install --upgrade pip
+sudo pip install -r requirements.txt
+sudo python setup.py install
+
 ```
 
 ## Running CloudPunch
@@ -195,5 +177,5 @@ The following is a sample Packer configuration to create a base CloudPunch image
 After both the configuration and environment files are made, tests can now be run. It is recommended to source the OpenStack OpenRC file instead of using the `-r` option on the command-line. See [Command-line Options](./configuration.md#command-line-options) for a full list of command-line options. After sourcing the OpenRC file you can run CloudPunch
 
 ```
-cloudpunch -c config.json -e environment.json
+cloudpunch run -c config.yaml -e environment.yaml
 ```

@@ -1,6 +1,7 @@
 import os
 import yaml
 import logging
+import collections
 
 
 class Environment(object):
@@ -15,7 +16,8 @@ class Environment(object):
             'api_versions': {
                 'cinder': 2,
                 'neutron': 2,
-                'nova': 2
+                'nova': 2,
+                'lbaas': 2
             },
             'master': {
                 'flavor': 'm1.small',
@@ -36,6 +38,27 @@ class Environment(object):
                     'enable': False,
                     'size': 10
                 },
+                'loadbalancer': {
+                    'enable': False,
+                    'method': 'ROUND_ROBIN',
+                    'frontend': {
+                        'protocol': 'HTTP',
+                        'port': 80
+                    },
+                    'backend': {
+                        'protocol': 'HTTP',
+                        'port': 80
+                    },
+                    'healthmonitor': {
+                        'type': 'PING',
+                        'delay': 5,
+                        'timeout': 5,
+                        'retries': 3,
+                        'url_path': '/',
+                        'http_method': 'GET',
+                        'expected_codes': '200'
+                    }
+                },
                 'userdata': []
             },
             'client': {
@@ -50,6 +73,27 @@ class Environment(object):
                     'enable': False,
                     'size': 10
                 },
+                'loadbalancer': {
+                    'enable': False,
+                    'method': 'ROUND_ROBIN',
+                    'frontend': {
+                        'protocol': 'HTTP',
+                        'port': 80
+                    },
+                    'backend': {
+                        'protocol': 'HTTP',
+                        'port': 80
+                    },
+                    'healthmonitor': {
+                        'type': 'PING',
+                        'delay': 5,
+                        'timeout': 5,
+                        'retries': 3,
+                        'url_path': '/',
+                        'http_method': 'GET',
+                        'expected_codes': '200'
+                    }
+                },
                 'userdata': []
             },
             'secgroup_rules': [
@@ -62,7 +106,9 @@ class Environment(object):
             ],
             'shared_userdata': [
                 "mkdir -p /opt/cloudpunch",
-                "git clone https://github.com/target/cloudpunch.git /opt/cloudpunch"
+                "git clone https://github.com/target/cloudpunch.git /opt/cloudpunch",
+                "cd /opt/cloudpunch",
+                "python setup.py install"
             ],
             'external_network': '',
         }
@@ -78,11 +124,20 @@ class Environment(object):
             logging.debug('Using default CloudPunch environment configuration')
 
         # Merge default and config file
-        self.final_config = default_config.copy()
-        self.final_config.update(read_config)
+        self.merge_configs(default_config, read_config)
+        self.final_config = default_config
+
+    def merge_configs(self, default, new):
+        for key, value in new.iteritems():
+            if (key in default and isinstance(default[key], dict) and
+                    isinstance(new[key], collections.Mapping)):
+                self.merge_configs(default[key], new[key])
+            else:
+                default[key] = new[key]
 
     def loadconfig(self, env_file):
-        contents = open(env_file).read()
+        with open(env_file) as f:
+            contents = f.read()
         try:
             data = yaml.load(contents)
         except yaml.YAMLError as e:
@@ -94,4 +149,7 @@ class Environment(object):
 
 
 class EnvError(Exception):
-    pass
+
+    def __init__(self, message):
+        super(EnvError, self).__init__(message)
+        self.message = message

@@ -4,11 +4,21 @@ All CloudPunch configuration is given through the command-line
 
 ## Command-line Options
 
-The following options are given on the command-line
+The following options are given on the command-line when using cloudpunch
+
+- `workload` - The type of workload to run. Can be run, cleanup, post, master, or slave. These are covered below
 
 - `-h, --help` - Show the help message and exit
 
 - `-v, --version` - Show the version number and exit
+
+- `-l, --loglevel` - Specify a log level when the default of INFO is not wanted. The following log levels are valid: DEBUG, INFO, WARNING, ERROR, and CRITICAL
+
+- `-L, --logfile` - Specify a log file to send all logging to rather than `stdout`. Note that this will overwrite any file given and **not** append
+
+## Run Command-line Options
+
+The following options are given on the command-line when using cloudpunch run
 
 - `-c, --config` - Provide a JSON formatted configuration file that will override the default configuration. Any keys that are missing will use the default values. See Configuration Files below for more information
 
@@ -38,25 +48,17 @@ The following options are given on the command-line
 
 - `--manual` - Enable manual test start mode. After the environment is staged and ready but before the test begins, the user must press Enter to continue. Note that this requires interactive
 
-- `--reuse` - Enable reuse mode. After a test is complete the user will be asked to rerun the same test, a different test, or abort. Enabling this mode allows the use of the environment again before a tear down occurs. This can save a lot of time for large scale environments. Running the same test will simply start the test again on the slaves and report results again. Running a different test requires providing a different configuration file where values will be loaded. Note that this will override the current configuration so only values that require change should be changed. Also note that the `-o` option file will be overwritten on each rerun
+- `--reuse` - Enable reuse mode. After a test is complete the user will be asked to rerun the same test, a different test, or abort. Enabling this mode allows the use of the environment again before a tear down occurs. This can save a lot of time for large scale environments. Running the same test will simply start the test again on the slaves and report results again. Running a different test requires providing a different configuration file where values will be loaded. Note that this will override the current configuration so only values that require change should be changed. Also note that the `-o` option file will have a `-n` appended to the end (n being the test number)
 
 - `--yaml` - Display the results of tests in YAML format instead of JSON format
 
 - `--insecure` - Turn off SSL verification to the OpenStack API's
 
-- `-l, --loglevel` - Specify a log level when the default of INFO is not wanted. The following log levels are valid: DEBUG, INFO, WARNING, ERROR, and CRITICAL
-
-- `-L, --logfile` - Specify a log file to send all logging to rather than `stdout`. Note that this will overwrite any file given and **not** append
-
 ## Cleanup Command-line Options
 
-The following options are given on the command-line when using cloudpunch-cleanup
+The following options are given on the command-line when using cloudpunch cleanup
 
-- `-h, --help` - Show the help message and exit
-
-- `-v, --version` - Show the version number and exit
-
-- `-f, --file` - Provide the cleanup file containing all resource IDs. This cleanup file is created when CloudPunch terminates.
+- `cleanup_file` - Provide the cleanup file containing all resource IDs. This cleanup file is created when CloudPunch terminates. This can be 'search' to search for resources that have been left over
 
 - `-r, --openrc` - Provide an OpenRC file containing authentication information for OpenStack. Note that information in the environment will override anything in the OpenRC file
 
@@ -64,57 +66,43 @@ The following options are given on the command-line when using cloudpunch-cleanu
 
 - `--no-env` - Disables loading authentication information from the environment. Use this to force the OpenRC file over the environment
 
-- `-l, --loglevel` - Specify a log level when the default of INFO is not wanted. The following log levels are valid: DEBUG, INFO, WARNING, ERROR, and CRITICAL
-
-- `-L, --logfile` - Specify a log file to send all logging to rather than `stdout`. Note that this will overwrite any file given and **not** append
+- `--insecure` - Turn off SSL verification to the OpenStack API's
 
 ## Post Command-line Options
 
-The following options are given on the command-line when using cloudpunch-post
+The following options are given on the command-line when using cloudpunch post
 
-- `-f, --file` - Provide the results file from a CloudPunch run
+- `results_file` - Provide the results file from a CloudPunch run
+
+- `-h, --help` - Show the help message and exit
+
+- `-f, --format` - The format to convert the processed results to. Can be json, yaml (default), table, or csv
 
 - `o, --output` - Specify an output file to save processed results to
 
 - `--raw` - Do not convert numbers to human readable format. By default 3000 would be converted to 3 K
 
-- `-l, --loglevel` - Specify a log level when the default of INFO is not wanted. The following log levels are valid: DEBUG, INFO, WARNING, ERROR, and CRITICAL
+## Master Command-line Options
 
-- `-L, --logfile` - Specify a log file to send all logging to rather than `stdout`. Note that this will overwrite any file given and **not** append
+The following options are given on the command-line when using cloudpunch master
+
+- `-l, --listen` - Local network binding to run the master on. The default is 0.0.0.0
+
+- `-p, --port` - Local port to run the master on. The default is 80
+
+- `-d, --debug` - Enable debug mode
+
+## Slave Command-line Options
+
+The following options are given on the command-line when using cloudpunch slave
+
+- `master_ip` - IP address of the master server
 
 ## Configuration File
 
 The configuration is a JSON or YAML formatted file containing information needed to run CloudPunch and is provided using the `-c` command-line option. Default values will be used if keys are missing from the file. The configuration file is exposed to the tests running and often will contain extra information needed by the specific test. See the documentation for the specific test for information on what extra keys are required.
 
 ##### Default Configuration
-```json
-{
-    "cleanup_resources": true,
-    "server_client_mode": true,
-    "servers_give_results": true,
-    "overtime_results": false,
-    "instance_threads": 5,
-    "retry_count": 50,
-    "network_mode": "full",
-    "number_routers": 1,
-    "networks_per_router": 1,
-    "instances_per_network": 1,
-    "test": ["ping"],
-    "test_mode": "list",
-    "test_start_delay": 0,
-    "recovery": {
-        "enable": false,
-        "type": "ask",
-        "threshold": 80,
-        "retries": 12
-    },
-    "datadog": {
-        "enable": false,
-        "api_key": "",
-        "tags": ["cloudpunch"]
-    }
-}
-```
 
 ```yaml
 cleanup_resources: true
@@ -136,11 +124,6 @@ recovery:
   type: ask
   threshold: 80
   retries: 12
-datadog:
-  enable: false
-  api_key:
-  tags:
-    - cloudpunch
 ```
 
 ##### Configuration Key Reference
@@ -195,78 +178,11 @@ datadog:
 
   - `retries` - The number of retries before a recovery is to take place. If the threshold is not passed, recovery will be ignored
 
-- `datadog` - Used for datadog integration. An event is sent to datadog when the tests begin and tests end. This is also used if a test integrates sending metrics to datadog. `datadog` has the following sub keys:
-
-  - `enable` - If to enable datadog integration. Note that all tests should honor this
-
-  - `api_key` - The API key used to communicate to datadog. This is used inside tests to send metrics
-
-  - `tags` - A list of tags that should be added to the datadog configuration and metrics sent inside tests. A role tag is also added dynamically based on if the instance is a server or a client
-
 ## Environment Files
 
 The environment is a JSON or YAML formatted file containing information needed to run CloudPunch in specific environments and is provided using the `-e` command-line option. Default values will be used if keys are missing from the file
 
 ##### Default Environment
-```json
-{
-    "image_name": "CentOS7",
-    "public_key_file": "~/.ssh/id_rsa.pub",
-    "api_versions": {
-        "cinder": 2,
-        "neutron": 2,
-        "nova": 2
-    },
-    "master": {
-        "flavor": "m1.small",
-        "availability_zone": "",
-        "userdata": [
-            "systemctl start redis.service"
-        ]
-    },
-    "server": {
-        "flavor": "m1.small",
-        "availability_zone": "",
-        "volume": {
-            "enable": false,
-            "size": 10,
-            "type": ""
-        },
-        "boot_from_vol": {
-            "enable": false,
-            "size": 10
-        },
-        "userdata": []
-    },
-    "client": {
-        "flavor": "m1.small",
-        "availability_zone": "",
-        "volume": {
-            "enable": false,
-            "size": 10,
-            "type": ""
-        },
-        "boot_from_vol": {
-            "enable": false,
-            "size": 10
-        },
-        "userdata": []
-    },
-    "secgroup_rules": [
-        ["icmp", -1, -1],
-        ["tcp", 80, 80]
-    ],
-    "dns_nameservers": [
-        "8.8.8.8",
-        "8.8.4.4"
-    ],
-    "shared_userdata": [
-        "mkdir -p /opt/cloudpunch",
-        "git clone https://github.com/target/cloudpunch.git /opt/cloudpunch"
-    ],
-    "external_network": "",
-}
-```
 
 ```yaml
 image_name: CentOS7
@@ -275,6 +191,7 @@ api_versions:
   cinder: 2
   nova: 2
   neutron: 2
+  lbaas: 2
 master:
   flavor: m1.small
   availability_zone:
@@ -290,6 +207,23 @@ server:
   boot_from_vol:
     enable: false
     size: 10
+  loadbalancer:
+    enable: false
+    method: ROUND_ROBIN
+    frontend:
+      protocol: HTTP
+      port: 80
+    backend:
+      protocol: HTTP
+      port: 80
+    healthmonitor:
+      type: PING
+      delay: 5
+      timeout: 5
+      retires: 3
+      url_path: /
+      http_method: GET
+      expected_codes: "200"
   userdata:
 client:
   flavor: m1.small
@@ -301,6 +235,23 @@ client:
   boot_from_vol:
     enable: false
     size: 10
+  loadbalancer:
+    enable: false
+    method: ROUND_ROBIN
+    frontend:
+      protocol: HTTP
+      port: 80
+    backend:
+      protocol: HTTP
+      port: 80
+    healthmonitor:
+      type: PING
+      delay: 5
+      timeout: 5
+      retires: 3
+      url_path: /
+      http_method: GET
+      expected_codes: "200"
   userdata:
 secgroup_rules:
   - - icmp
@@ -332,6 +283,8 @@ external_network:
 
   - `neutron` - The version of neutron (network) to use
 
+  - 'lbaas' - The version of lbaas (loadbalancer as a service) to use
+
 - `master` - Properties that apply to the master instance. The master instance is the only instance that requires a floating IP address as the local machine uses it to interact with the test environment. `master` has the following sub keys:
 
   - `flavor` - The name of the flavor to use when creating the instance. This can be a name or ID
@@ -360,6 +313,40 @@ external_network:
 
       - `size` - The size of the volume in Gigabytes
 
+  - `loadbalancer` - Properties that apply to incorporating a loadbalancer in front of servers. `loadbalancer` has the following sub keys:
+
+      - `enable` - If to enable the loadbalancer creation
+
+      - `method` - The loadbalancer algorithm. Valid options are ROUND_ROBIN, LEAST_CONNECTIONS, or SOURCE_IP
+
+      - `frontend` - Properties that apply to the frontend of the loadbalancer. `frontend` has the following sub keys:
+
+          - `protocol` - Type of traffic protocol. Valid options are HTTP, HTTPS, or TCP
+
+          - `port` - The protocol port
+
+      - `backend` - Properties that apply to the backend of the loadbalancer. `backend` has the following sub keys:
+
+          - `protocol` - Type of traffic protocol. Valid options are HTTP, HTTPS, or TCP
+
+          - `port` - The protocol port
+
+      - `healthmonitor` - Properties that apply to the loadbalancer's health monitor
+
+          - `type` - The health monitor type. Valid options are PING, TCP, HTTP or HTTPS
+
+          - `delay` - The delay between checks in seconds
+
+          - `timeout` - The timeout period in seconds
+
+          - `retires` - The maximum number of retries before a member is removed. Must be between 1 and 10
+
+          - `url_path` - The url path to test. Only valid with HTTP or HTTPS types
+
+          - `http_method` - The HTTP method to use to test. Only valid with HTTP or HTTPS types
+
+          - `expected_codes` - A single (200), range (200-202), or comma-seperated (200,201,202) list of codes to consider valid
+
   - `userdata` - A list of commands processed by shell to run during the cloud-init process. This is used to setup the server role for specific environments and tests
 
 - `client` - Properties that apply to the client role. The client role is a slave that is designated as a client during creation and when tests are running. `client` has the following sub keys:
@@ -382,6 +369,40 @@ external_network:
 
       - `size` - The size of the volume in Gigabytes
 
+  - `loadbalancer` - Properties that apply to incorporating a loadbalancer in front of clients. `loadbalancer` has the following sub keys:
+
+      - `enable` - If to enable the loadbalancer creation
+
+      - `method` - The loadbalancer algorithm. Valid options are ROUND_ROBIN, LEAST_CONNECTIONS, or SOURCE_IP
+
+      - `frontend` - Properties that apply to the frontend of the loadbalancer. `frontend` has the following sub keys:
+
+          - `protocol` - Type of traffic protocol. Valid options are HTTP, HTTPS, or TCP
+
+          - `port` - The protocol port
+
+      - `backend` - Properties that apply to the backend of the loadbalancer. `backend` has the following sub keys:
+
+          - `protocol` - Type of traffic protocol. Valid options are HTTP, HTTPS, or TCP
+
+          - `port` - The protocol port
+
+      - `healthmonitor` - Properties that apply to the loadbalancer's health monitor
+
+          - `type` - The health monitor type. Valid options are PING, TCP, HTTP or HTTPS
+
+          - `delay` - The delay between checks in seconds
+
+          - `timeout` - The timeout period in seconds
+
+          - `retires` - The maximum number of retries before a member is removed. Must be between 1 and 10
+
+          - `url_path` - The url path to test. Only valid with HTTP or HTTPS types
+
+          - `http_method` - The HTTP method to use to test. Only valid with HTTP or HTTPS types
+
+          - `expected_codes` - A single (200), range (200-202), or comma-seperated (200,201,202) list of codes to consider valid
+
   - `userdata` - A list of commands processed by shell to run during the cloud-init process. This is used to setup the client role for specific environments and tests
 
 - `secgroup_rules` - A list of security group rules that will be attached to all instances created. Each rule is a list containing protocol, from port, and to port. For example: `["icmp", -1, -1]`
@@ -398,27 +419,6 @@ external_network:
 The hostmap is a JSON or YAML formatted file containing a list of availability zones or hosts that will determine where each instances will land. Note that when using a hostmap, the `availability_zone` keys for servers and clients will be ignored. The master key will not be ignored. It consists of two main keys: `tags` and `map`. `tags` is used to translate something in the map to it's real name. For example `compute-zone1` could be tagged as `zone1`. The `map` key is a list of availability zones or tags. Each entry has two comma separated availability zones or tags. The first is where the server will end up and the second is where the client will end up. This pair of server and client will be associated with each other later on for tests. This list is processed in order of creation and if the list is exhausted, it will begin at the beginning again.
 
 ##### Hostmap Example
-
-```json
-{
-    "tags": {
-        "zone1": "compute-zone1",
-        "zone2": "compute-zone2",
-        "zone3": "compute-zone3",
-        "zone4": "compute-zone4",
-        "zone5": "compute-zone5",
-        "zone6": "compute-zone6"
-    },
-    "map": [
-        "zone1,zone2",
-        "zone2,zone3",
-        "zone3,zone4",
-        "zone4,zone5",
-        "zone5,zone6",
-        "zone6,zone1"
-    ]
-}
-```
 
 ```yaml
 tags:
@@ -442,19 +442,6 @@ map:
 The flavor file is a JSON or YAML formatted file containing a list of flavors assigned to a percentage. This will determine how many instances will be assigned a specific flavor. Note that when using a flavor file, the `flavor` keys for servers and clients will be ignore. The master key will not be ignored. If `server_client_mode` is enabled, both servers and clients will follow the flavor file the same way. Note that the percentages have to add up to be between 99% and 100%. This is to account for scenarios that are close to 100% but not exact such as 33.33% or 1/3.
 
 ##### Flavor File Example
-
-```json
-{
-    "flavors": {
-        "m1.tiny": 0,
-        "m1.demo": 0,
-        "m1.small": 50,
-        "m1.medium": 50,
-        "m1.large": 0,
-        "m1.xlarge": 0,
-    }
-}
-```
 
 ```yaml
 flavors:

@@ -155,4 +155,7 @@ class Credentials(object):
 
 
 class CredError(Exception):
-    pass
+
+    def __init__(self, message):
+        super(CredError, self).__init__(message)
+        self.message = message

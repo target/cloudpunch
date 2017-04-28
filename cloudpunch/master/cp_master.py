@@ -4,8 +4,6 @@ import redis
 from flask import Flask, abort, request
 
 app = Flask(__name__)
-__host__ = '0.0.0.0'
-__port__ = 80
 
 
 @app.errorhandler(400)
@@ -138,9 +136,9 @@ def get_instance_num(config, instance_name):
 def match_servers():
     # Matches server and client instances based on their instance number (they equal each other)
     r_server = redis.Redis('localhost')
+    config = json.loads(r_server.get('config'))
     if not r_server.get('servers'):
         instances = json.loads(r_server.get('instances'))
-        config = json.loads(r_server.get('config'))
         # Premake the lists
         # This allows setting values everywhere
         if config['server_client_mode']:
@@ -157,6 +155,7 @@ def match_servers():
                 clients[inst_num - 1] = instance
         r_server.set('servers', json.dumps(servers))
         r_server.set('clients', json.dumps(clients))
+    r_server.set('matched', json.dumps({'status': True}))
     return json.dumps({'status': 'matched'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
@@ -174,8 +173,8 @@ def test_status():
     if not hostname:
         abort(400, 'Missing hostname')
     r_server = redis.Redis('localhost')
-    servers = r_server.get('servers')
-    if servers:
+    matched_status = r_server.get('matched')
+    if matched_status:
         # A list of servers that have asked to start the test
         # This list is reset when restarting the test
         running = r_server.get('running')
@@ -203,6 +202,42 @@ def delete_status():
     return json.dumps({'status': 'deleted'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
+def get_network_num(config, instance_name):
+    if config['network_mode'] == 'single-network':
+        return 1
+    instance_name_split = instance_name.split('-')
+    if config['network_mode'] == 'full':
+        # cloudpunch-9079364-c-r1-n1-c1
+        router_num = int(instance_name_split[3][1:])
+        network_num = int(instance_name_split[4][1:])
+        first_num = (router_num - 1) * config['networks_per_router']
+        return first_num + network_num
+    elif config['network_mode'] == 'single-router':
+        # cloudpunch-9079364-c-master-n1-c1
+        return int(instance_name_split[4][1:])
+
+
+def get_index(data, hostname):
+    try:
+        return next(index for (index, d) in enumerate(data) if d['hostname'] == hostname)
+    except StopIteration:
+        return -1
+
+
+def get_role(hostname):
+    name_split = hostname.split('-')
+    if name_split[2] == 'master':
+        if name_split[3][0] == 's':
+            return 'server'
+        if name_split[3][0] == 'c':
+            return 'client'
+    if name_split[2] == 's':
+        return 'server'
+    if name_split[2] == 'c':
+        return 'client'
+    return None
+
+
 # {
 #     'hostname': ''
 # }
@@ -214,6 +249,7 @@ def test_run():
     if not request.json:
         abort(400, 'Missing required data')
     hostname = request.json.get('hostname')
+    role = get_role(hostname)
     if not hostname:
         abort(400, 'Missing hostname')
     r_server = redis.Redis('localhost')
@@ -223,25 +259,33 @@ def test_run():
         config = json.loads(data)
     else:
         abort(404, 'No configuration exists')
+    # Match up loadbalancers IP addresses based on the network an instance is on
+    if 'loadbalancers' in config:
+        if role == 'server' and 'client' in config['loadbalancers']:
+            config['match_ip'] = config['loadbalancers']['client'][get_network_num(config, hostname) - 1]
+        elif role == 'client' and 'server' in config['loadbalancers']:
+            config['match_ip'] = config['loadbalancers']['server'][get_network_num(config, hostname) - 1]
     # Match up instance IP addresses using the lists made in match_servers()
     # Matched instances share the same index number
     # network_mode full gives floating IP addresses, single-router and single-network give internal IP addresses
-    if config['server_client_mode']:
-        match_ip = ''
+    if 'match_ip' not in config and config['server_client_mode']:
         servers = json.loads(r_server.get('servers'))
         clients = json.loads(r_server.get('clients'))
-        for index in range(len(servers)):
-            if servers[index]['hostname'] == hostname:
-                match_ip = clients[index]['internal_ip']
-                if config['network_mode'] == 'full':
-                    match_ip = clients[index]['external_ip']
-            elif clients[index]['hostname'] == hostname:
-                match_ip = servers[index]['internal_ip']
-                if config['network_mode'] == 'full':
-                    match_ip = servers[index]['external_ip']
-        if len(match_ip) < 1:
-            abort(404, 'No match found')
-        config['match_ip'] = match_ip
+        wanted_ip = 'internal_ip'
+        if config['network_mode'] == 'full':
+            wanted_ip = 'external_ip'
+        if role == 'server':
+            server_index = get_index(servers, hostname)
+            if server_index >= 0:
+                config['match_ip'] = clients[server_index][wanted_ip]
+            else:
+                abort(404, 'No match found')
+        elif role == 'client':
+            client_index = get_index(clients, hostname)
+            if client_index >= 0:
+                config['match_ip'] = servers[client_index][wanted_ip]
+            else:
+                abort(404, 'No match found')
     return json.dumps(config), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
@@ -277,5 +321,7 @@ def give_results():
     return json.dumps({'status': 'saved'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
-if __name__ == '__main__':
-    app.run(host=__host__, port=__port__, debug=True)
+def run(host, port, debug):
+    app.run(host=host,
+            port=int(port),
+            debug=debug)

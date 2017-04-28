@@ -1,8 +1,8 @@
 # Writing Custom Tests
 
-All tests live under `cp_slave/` as `testname.py`. The test name is set in the configuration file. See existing tests inside `cp_slave/` for further examples.
+All official tests live under `cloudpunch/slave` as `testname.py`. The test name is set in the configuration file. See existing tests inside `cloudpunch/slave` for further examples.
 
-Tests must be located on the instances that run the tests. If a custom test is created it is recommended to tar ball the source code with the new test and host this tar ball so the instances can download said tar ball (by changing instance userdata).
+Tests must be located on the instances that run the tests. If a custom test is created, put this file inside a directory called `tests` inside the current working directory. Any test files inside the configuration will be grabbed and pushed up to the slaves to run.
 
 ##### Custom Test Example
 ```python
