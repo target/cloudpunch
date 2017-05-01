@@ -204,6 +204,7 @@ server:
     enable: false
     size: 10
     type:
+    availability_zone:
   boot_from_vol:
     enable: false
     size: 10
@@ -232,6 +233,7 @@ client:
     enable: false
     size: 10
     type:
+    availability_zone:
   boot_from_vol:
     enable: false
     size: 10
@@ -307,6 +309,8 @@ external_network:
 
       - `type` - The type of the volume. This is not required
 
+      - `availability_zone` - The availability zone of the volume. This is not required
+
   - `boot_from_vol` - Properties that apply to booting from a volume rather than a local storage. `boot_from_vol` has the following sub keys:
 
       - `enable` - If the instance should boot from a volume rather than local storage
@@ -362,6 +366,8 @@ external_network:
       - `size` - The size of the volume in Gigabytes
 
       - `type` - The type of the volume. This is not required
+
+      - `availability_zone` - The availability zone of the volume. This is not required
 
   - `boot_from_vol` - Properties that apply to booting from a volume rather than a local storage. `boot_from_vol` has the following sub keys:
 

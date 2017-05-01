@@ -143,7 +143,7 @@ sudo yum update -y
 curl -O https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 sudo yum install epel-release-latest-7.noarch.rpm
 sudo yum-config-manager --enable epel
-sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel redis libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio
+sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel redis libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio jq
 
 # Start services
 sudo systemctl enable redis

@@ -32,7 +32,8 @@ class Environment(object):
                 'volume': {
                     'enable': False,
                     'size': 10,
-                    'type': ''
+                    'type': '',
+                    'availability_zone': ''
                 },
                 'boot_from_vol': {
                     'enable': False,
@@ -67,7 +68,8 @@ class Environment(object):
                 'volume': {
                     'enable': False,
                     'size': 10,
-                    'type': ''
+                    'type': '',
+                    'availability_zone': ''
                 },
                 'boot_from_vol': {
                     'enable': False,
