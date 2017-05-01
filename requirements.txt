@@ -10,3 +10,5 @@ python-neutronclient>=6.0.0
 python-cinderclient>=1.10.0
 xmltodict>=0.10.2
 gunicorn>=19.7.1
+
+Babel==2.3.4

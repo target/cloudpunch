@@ -458,7 +458,8 @@ class Accelerator(object):
                                          self.env[label]['api_versions']['cinder'])
                 volume.create(self.env[label][instance_map['role']]['volume']['size'],
                               instance_map['name'],
-                              volume_type=self.env[label][instance_map['role']]['volume']['type'])
+                              volume_type=self.env[label][instance_map['role']]['volume']['type'],
+                              availability_zone=self.env[label][instance_map['role']]['volume']['availability_zone'])
                 self.resources['volumes'][label].append(volume)
 
             # Attach volume to instance
