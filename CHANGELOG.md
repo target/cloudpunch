@@ -1,7 +1,7 @@
 # Change Log
 A list of notable changes will be documented here
 
-## 1.4.0 - 2017-05-08
+## 1.4.0 - 2017-06-14
 ### Added
 - Cleanup now has the flag `-n, --dry-run` when performing a search. This will prevent resources from being deleted
 - Cleanup now has the flag `-a, --names` when performing a search. It will print out the UUIDs and names of found resources
