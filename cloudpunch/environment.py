@@ -15,6 +15,7 @@ class Environment(object):
             'public_key_file': '~/.ssh/id_rsa.pub',
             'api_versions': {
                 'cinder': 2,
+                'glance': 2,
                 'neutron': 2,
                 'nova': 2,
                 'lbaas': 2
@@ -128,6 +129,15 @@ class Environment(object):
         # Merge default and config file
         self.merge_configs(default_config, read_config)
         self.final_config = default_config
+
+        # Replace ~ with $HOME
+        if self.final_config['public_key_file'][0] == '~':
+            self.final_config['public_key_file'] = '%s%s' % (os.environ['HOME'],
+                                                             self.final_config['public_key_file'][1:])
+
+        # Error checking
+        if not os.path.isfile(self.final_config['public_key_file']):
+            raise EnvError('Public key file %s does not exist' % self.final_config['public_key_file'])
 
     def merge_configs(self, default, new):
         for key, value in new.iteritems():

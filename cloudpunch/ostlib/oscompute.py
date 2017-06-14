@@ -6,7 +6,7 @@ import novaclient.client as nclient
 import novaclient.exceptions
 
 
-class SecGroup(object):
+class BaseCompute(object):
 
     def __init__(self, session, region_name=None, api_version=2):
         # Create the nova object which handles interaction with the API
@@ -14,6 +14,9 @@ class SecGroup(object):
                                    session=session,
                                    region_name=region_name)
         self.api_version = api_version
+
+
+class SecGroup(BaseCompute):
 
     def create(self, name, description=''):
         # Create a security group with no rules
@@ -50,13 +53,15 @@ class SecGroup(object):
     def load(self, secgroup_id):
         self.group = self.nova.security_groups.get(secgroup_id)
 
-    def list(self, project_only=True):
-        if project_only:
+    def list(self, project_id=None, all_projects=False):
+        if not project_id and not all_projects:
             groups = self.nova.security_groups.list()
         else:
             groups = self.nova.security_groups.list(search_opts={"all_tenants": 1})
         group_info = []
         for group in groups:
+            if project_id and project_id != group.tenant_id:
+                continue
             group_info.append({
                 'id': group.id,
                 'name': group.name
@@ -86,14 +91,7 @@ class SecGroup(object):
         return group.id
 
 
-class KeyPair(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the nova object which handles interaction with the API
-        self.nova = nclient.Client(str(api_version),
-                                   session=session,
-                                   region_name=region_name)
-        self.api_version = api_version
+class KeyPair(BaseCompute):
 
     def create(self, name, path):
         # Create a keypair using the provided public key file
@@ -137,28 +135,12 @@ class KeyPair(object):
         return keypair.name
 
 
-class Instance(object):
+class Instance(BaseCompute):
 
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the nova object which handles interaction with the API
-        self.nova = nclient.Client(str(api_version),
-                                   session=session,
-                                   region_name=region_name)
-        self.api_version = api_version
-        self.retry_count = 20
-
-    def create(self, instance_name, image_name, flavor_name, network_id,
-               availability_zone=None, keypair_name=None, secgroup_id=None,
+    def create(self, instance_name, image_id, flavor_name, network_id,
+               availability_zone=None, keypair_name=None, secgroup_id='default',
                retry_count=120, user_data=None, volume_id=None, snapshot_id=None,
                boot_from_vol=None):
-        self.retry_count = retry_count
-        if not boot_from_vol or (boot_from_vol and not volume_id and not snapshot_id):
-            try:
-                # if image is an ID
-                image = self.nova.images.get(image_name)
-            except Exception:
-                # if image is a name
-                image = self.nova.images.find(name=image_name)
         try:
             # if flavor is an ID
             flavor = self.nova.flavors.get(flavor_name)
@@ -168,9 +150,6 @@ class Instance(object):
         nic = [{
             'net-id': network_id
         }]
-        # Get the default security group if supplied is None
-        if not secgroup_id:
-            secgroup_id = 'default'
         # Create userdata
         if user_data:
             userdata = "#cloud-config\n\nruncmd:\n"
@@ -194,7 +173,7 @@ class Instance(object):
                            'delete_on_termination': True,
                            'boot_index': 0}
             else:
-                mapping = {'uuid': image.id,
+                mapping = {'uuid': image_id,
                            'source_type': 'image',
                            'destination_type': 'volume',
                            'volume_size': boot_from_vol,
@@ -212,7 +191,7 @@ class Instance(object):
         # Create an instance
         else:
             self.instance = self.nova.servers.create(name=instance_name,
-                                                     image=image,
+                                                     image=image_id,
                                                      flavor=flavor,
                                                      key_name=keypair_name,
                                                      nics=nic,
@@ -220,7 +199,7 @@ class Instance(object):
                                                      userdata=user_data,
                                                      security_groups=[secgroup_id])
         logging.debug('Created instance %s with ID %s using image %s and flavor %s',
-                      instance_name, self.get_id(), image_name, flavor_name)
+                      instance_name, self.get_id(), image_id, flavor_name)
         logging.debug('Waiting for instance %s with ID %s to finish building',
                       instance_name, self.get_id())
         # Wait for the instance to become active before continuing
@@ -247,7 +226,7 @@ class Instance(object):
         instance = self.get(instance_id)
         self.detach_volume(instance.id)
         self.remove_float(instance.id)
-        for _ in range(self.retry_count):
+        for _ in range(60):
             srv = self.get(instance_id)
             if srv.status.lower() in ['active', 'error']:
                 instance.delete()
@@ -308,8 +287,8 @@ class Instance(object):
         # Load in an instance
         self.instance = self.nova.servers.get(instance_id)
 
-    def list(self, project_only=True):
-        if project_only:
+    def list(self, project_id=None, all_projects=False):
+        if not project_id and not all_projects:
             servers = self.nova.servers.list()
         else:
             servers = []
@@ -322,6 +301,8 @@ class Instance(object):
                                                        marker=servers_chunk[-1].id)
         server_info = []
         for server in servers:
+            if project_id and project_id != server.tenant_id:
+                continue
             server_info.append({
                 'id': server.id,
                 'name': server.name
@@ -373,14 +354,7 @@ class Instance(object):
         return instance.id
 
 
-class Quota(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the nova object which handles interaction with the API
-        self.nova = nclient.Client(str(api_version),
-                                   session=session,
-                                   region_name=region_name)
-        self.api_version = api_version
+class Quota(BaseCompute):
 
     def get(self, project_id):
         return self.nova.quotas.get(tenant_id=project_id).to_dict()
