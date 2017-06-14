@@ -1,6 +1,6 @@
 flask>=0.12
 redis>=2.10.5
-requests==2.12.5
+requests>=2.12.5
 tabulate>=0.7.7
 futures>=3.0.5
 pyyaml>=3.12

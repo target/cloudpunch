@@ -7,6 +7,7 @@ A list of notable changes will be documented here
 - Cleanup now has the flag `-a, --names` when performing a search. It will print out the UUIDs and names of found resources
 
 ### Changed
+- The SSH public key file specified in the environment file is now checked if it exists
 - Security groups are now made through Neutron instead of Nova (deprecated in novaclient 8)
 - Images are now searched inside Glance instead of Nova (deprecated in novaclient 9)
 - Cleanup will now only stay within the sourced project when an admin user
