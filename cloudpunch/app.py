@@ -129,7 +129,7 @@ def cp_app():
                             help='results are yaml instead of json')
     run_parser.add_argument('--insecure',
                             action='store_false',
-                            dest='insecure_mode',
+                            dest='verify',
                             help='ignore SSL failures')
     # Cleanup parser
     cleanup_parser = subparsers.add_parser('cleanup',
@@ -148,13 +148,23 @@ def cp_app():
                                 dest='password',
                                 default=None,
                                 help='password or token to login')
+    cleanup_parser.add_argument('-n',
+                                '--dry-run',
+                                action='store_true',
+                                dest='dry_run',
+                                help='do not delete resources')
+    cleanup_parser.add_argument('-a',
+                                '--names',
+                                action='store_true',
+                                dest='names',
+                                help='display resources found')
     cleanup_parser.add_argument('--no-env',
                                 action='store_true',
                                 dest='no_env',
                                 help='do not use environment for authentication')
     cleanup_parser.add_argument('--insecure',
                                 action='store_false',
-                                dest='insecure_mode',
+                                dest='verify',
                                 help='ignore SSL failures')
     # Post parser
     post_parser = subparsers.add_parser('post',
@@ -266,7 +276,7 @@ def cp_app():
                                       manual_mode=args.manual_mode,
                                       reuse_mode=args.reuse_mode,
                                       yaml_mode=args.yaml_mode,
-                                      insecure_mode=args.insecure_mode)
+                                      verify=args.verify)
         acc.run()
 
     # Cleanup workload
@@ -277,7 +287,9 @@ def cp_app():
                                         interactive=True)
         clean = cleanup.Cleanup(creds=creds,
                                 cleanup_file=args.cleanup_file,
-                                insecure_mode=args.insecure_mode)
+                                verify=args.verify,
+                                dry_run=args.dry_run,
+                                names=args.names)
         clean.run()
 
     # Post workload
@@ -309,8 +321,8 @@ def main():
         logging.error(e.message)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        logging.error('%s: %s', type(e).__name__, e.message)
+    # except Exception as e:
+    #     logging.error('%s: %s', type(e).__name__, e.message)
     finally:
         logging.info('Terminating CloudPunch')
 

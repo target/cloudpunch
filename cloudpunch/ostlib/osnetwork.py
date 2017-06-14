@@ -4,13 +4,110 @@ import logging
 import neutronclient.v2_0.client as nclient
 
 
-class Network(object):
+class BaseNetwork(object):
 
     def __init__(self, session, region_name=None, api_version=2):
         # Create the neutron object which handles interaction with the API
         self.neutron = nclient.Client(session=session,
                                       region_name=region_name)
+        self.session = session
         self.api_version = api_version
+
+
+class SecurityGroup(BaseNetwork):
+
+    def create(self, name, description=''):
+        sec_body = {
+            'security_group': {
+                'name': name,
+                'description': description
+            }
+        }
+        self.group = self.neutron.create_security_group(sec_body)
+        logging.debug('Created security group %s with ID %s', name, self.get_id())
+
+    def delete(self, secgroup_id=None):
+        group = self.get(secgroup_id)
+        try:
+            self.neutron.delete_security_group(group['security_group']['id'])
+            logging.debug('Deleted security group %s with ID %s',
+                          group['security_group']['name'], group['security_group']['id'])
+            return True
+        except Exception:
+            logging.error('Failed to delete security group %s with ID %s',
+                          group['security_group']['name'], group['security_group']['id'])
+            return False
+
+    def add_rule(self, protocol, from_port, to_port, secgroup_id=None):
+        group = self.get(secgroup_id)
+        if protocol.lower() == 'icmp':
+            from_port = None
+            to_port = None
+        rule_body = {
+            'security_group_rule': {
+                'direction': 'ingress',
+                'protocol': protocol,
+                'port_range_min': from_port,
+                'port_range_max': to_port,
+                'ethertype': 'IPv4',
+                'remote_ip_prefix': '0.0.0.0/0',
+                'security_group_id': group['security_group']['id']
+            }
+        }
+        self.neutron.create_security_group_rule(rule_body)
+        logging.debug('Added rule to security group %s with ID %s matching the protocol %s from %s to %s',
+                      group['security_group']['name'], group['security_group']['id'], protocol, from_port, to_port)
+
+    def remove_rule(self, rule_id):
+        self.neutron.delete_security_group_rule(rule_id)
+        logging.debug('Removed security group rule %s', rule_id)
+
+    def load(self, secgroup_id):
+        self.group = self.neutron.show_security_group(secgroup_id)
+
+    def list(self, project_id=None, all_projects=False):
+        group_info = []
+        groups = self.neutron.list_security_groups()['security_groups']
+        for group in groups:
+            if not all_projects and project_id and group['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and group['tenant_id'] != self.session.get_project_id():
+                continue
+            group_info.append({
+                'id': group['id'],
+                'name': group['name']
+            })
+        return group_info
+
+    def list_rules(self, secgroup_id=None):
+        rules_info = []
+        group = self.get(secgroup_id)
+        rules = self.neutron.list_security_group_rules()['security_group_rules']
+        for rule in rules:
+            if rule['security_group_id'] == group['security_group']['id']:
+                rules_info.append(rule)
+        return rules_info
+
+    def get(self, secgroup_id=None, use_cached=False):
+        if secgroup_id:
+            return self.neutron.show_security_group(secgroup_id)
+        try:
+            if use_cached:
+                return self.group
+            return self.neutron.show_security_group(self.get_id())
+        except AttributeError:
+            raise OSNetworkError('No security group supplied and no cached network')
+
+    def get_name(self, secgroup_id=None, use_cached=False):
+        group = self.get(secgroup_id, use_cached)
+        return group['security_group']['name']
+
+    def get_id(self):
+        group = self.get(use_cached=True)
+        return group['security_group']['id']
+
+
+class Network(BaseNetwork):
 
     def create(self, name):
         # Create dictionary containing network information
@@ -45,21 +142,18 @@ class Network(object):
     def load(self, network_id):
         self.network = self.neutron.show_network(network_id)
 
-    def list(self, project_id=None):
+    def list(self, project_id=None, all_projects=False, include_external=False):
         network_info = []
         networks = self.neutron.list_networks()['networks']
         for network in networks:
-            if project_id:
-                if network['tenant_id'] == project_id:
-                    network_info.append({
-                        'id': network['id'],
-                        'name': network['name']
-                    })
-            else:
-                network_info.append({
-                    'id': network['id'],
-                    'name': network['name']
-                })
+            if not all_projects and project_id and network['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and network['tenant_id'] != self.session.get_project_id():
+                continue
+            network_info.append({
+                'id': network['id'],
+                'name': network['name']
+            })
         return network_info
 
     def list_subnets(self, network_id=None, use_cached=False):
@@ -85,13 +179,7 @@ class Network(object):
         return network['network']['id']
 
 
-class ExtNetwork(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class ExtNetwork(BaseNetwork):
 
     def find_ext_network(self, name=None):
         # Get a list of all networks
@@ -134,13 +222,7 @@ class ExtNetwork(object):
         return ext_network['id']
 
 
-class Subnet(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class Subnet(BaseNetwork):
 
     def create(self, name, cidr, network_id, dns_nameservers=None):
         # Create dictionary containing subnet information
@@ -162,10 +244,14 @@ class Subnet(object):
     def load(self, subnet_id):
         self.subnet = self.neutron.show_subnet(subnet_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         subnet_info = []
         subnets = self.neutron.list_subnets()['subnets']
         for subnet in subnets:
+            if not all_projects and project_id and subnet['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and subnet['tenant_id'] != self.session.get_project_id():
+                continue
             subnet_info.append({
                 'id': subnet['id'],
                 'name': subnet['name']
@@ -191,13 +277,79 @@ class Subnet(object):
         return subnet['subnet']['id']
 
 
-class Router(object):
+class Port(BaseNetwork):
 
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+    def create(self, network_id, name, description='', device_id=None, allowed_address_pairs=None):
+        # Create dictionary containing port information
+        port_body = {
+            'port': {
+                'network_id': network_id,
+                'name': name,
+                'description': description
+            }
+        }
+        if device_id:
+            port_body['device_id'] = device_id
+        if allowed_address_pairs:
+            port_body['allowed_address_pairs'] = allowed_address_pairs
+        # Create a port
+        self.port = self.neutron.create_port(port_body)
+        logging.debug('Created port %s with ID %s and attached to network ID %s',
+                      name, self.get_id(), network_id)
+
+    def delete(self, port_id=None):
+        port = self.get(port_id)
+        # Allow 10 seconds before a port fails to delete
+        for _ in range(10):
+            try:
+                # Delete a port
+                # This may throw an exception, ignore it and wait 1 second
+                self.neutron.delete_port(port['port']['id'])
+                logging.debug('Deleted port %s', port['port']['id'])
+                return True
+            except Exception:
+                time.sleep(1)
+        # The port has failed to delete
+        logging.error('Failed to delete port %s', port['port']['id'])
+        return False
+
+    def load(self, port_id):
+        self.port = self.neutron.show_port(port_id)
+
+    def list(self, project_id=None, all_projects=False):
+        port_info = []
+        ports = self.neutron.list_ports()['ports']
+        for port in ports:
+            if not all_projects and project_id and port['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and port['tenant_id'] != self.session.get_project_id():
+                continue
+            port_info.append({
+                'id': port['id'],
+                'name': port['name']
+            })
+        return port_info
+
+    def get(self, port_id=None, use_cached=False):
+        if port_id:
+            return self.neutron.show_port(port_id)
+        try:
+            if use_cached:
+                return self.port
+            return self.neutron.show_port(self.get_id())
+        except AttributeError:
+            raise OSNetworkError('No port supplied and no cached port')
+
+    def get_name(self, port_id=None, use_cached=False):
+        port = self.get(port_id, use_cached)
+        return port['port']['name']
+
+    def get_id(self):
+        port = self.get(use_cached=True)
+        return port['port']['id']
+
+
+class Router(BaseNetwork):
 
     def create(self, name, ext_network_id):
         # Create dictionary containing router information
@@ -262,21 +414,18 @@ class Router(object):
     def load(self, router_id):
         self.router = self.neutron.show_router(router_id)
 
-    def list(self, project_id=None):
+    def list(self, project_id=None, all_projects=False):
         router_info = []
         routers = self.neutron.list_routers()['routers']
         for router in routers:
-            if project_id:
-                if router['tenant_id'] == project_id:
-                    router_info.append({
-                        'id': router['id'],
-                        'name': router['name']
-                    })
-            else:
-                router_info.append({
-                    'id': router['id'],
-                    'name': router['name']
-                })
+            if not all_projects and project_id and router['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and router['tenant_id'] != self.session.get_project_id():
+                continue
+            router_info.append({
+                'id': router['id'],
+                'name': router['name']
+            })
         return router_info
 
     def get(self, router_id=None, use_cached=False):
@@ -298,13 +447,7 @@ class Router(object):
         return router['router']['id']
 
 
-class FloatingIP(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class FloatingIP(BaseNetwork):
 
     def create(self, ext_network_id, port_id=None):
         # Create dictionary containing external network information
@@ -322,6 +465,7 @@ class FloatingIP(object):
 
     def delete(self, floatingip_id=None):
         floating_ip = self.get(floatingip_id)
+        self.disassociate(floating_ip['floatingip']['id'])
         # Allow 10 seconds before a floating IP fails to release
         for _ in range(10):
             try:
@@ -338,13 +482,30 @@ class FloatingIP(object):
                       floating_ip['floatingip']['floating_ip_address'], floating_ip['floatingip']['id'])
         return False
 
+    def disassociate(self, floatingip_id=None):
+        floating_ip = self.get(floatingip_id)
+        if floating_ip['floatingip']['port_id']:
+            float_body = {
+                'floatingip': {
+                    'port_id': None
+                }
+            }
+            self.neutron.update_floatingip(floating_ip['floatingip']['id'], float_body)
+            logging.debug('Disassociated floating ip %s from port %s',
+                          floating_ip['floatingip']['floating_ip_address'],
+                          floating_ip['floatingip']['port_id'])
+
     def load(self, floatingip_id):
         self.floating_ip = self.neutron.show_floatingip(floatingip_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         floatingip_info = []
         floatingips = self.neutron.list_floatingips()['floatingips']
         for floatingip in floatingips:
+            if not all_projects and project_id and floatingip['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and floatingip['tenant_id'] != self.session.get_project_id():
+                continue
             floatingip_info.append({
                 'id': floatingip['id'],
                 'ip': floatingip['floating_ip_address']
@@ -377,13 +538,7 @@ class FloatingIP(object):
             return ip['floatingip']['id']
 
 
-class Pool(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class Pool(BaseNetwork):
 
     def create(self, name, method, protocol, subnet_id, description=''):
         method = method.upper()
@@ -450,10 +605,14 @@ class Pool(object):
     def load(self, pool_id):
         self.pool = self.neutron.show_pool(pool_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         pool_info = []
         pools = self.neutron.list_pools()['pools']
         for pool in pools:
+            if not all_projects and project_id and pool['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and pool['tenant_id'] != self.session.get_project_id():
+                continue
             pool_info.append({
                 'id': pool['id'],
                 'name': pool['name']
@@ -483,13 +642,7 @@ class Pool(object):
         return pool['pool']['id']
 
 
-class PoolVIP(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class PoolVIP(BaseNetwork):
 
     def create(self, name, protocol_port, protocol, subnet_id, pool_id, description='',
                session_persistence=None, connection_limit=None):
@@ -537,10 +690,14 @@ class PoolVIP(object):
     def load(self, vip_id):
         self.vip = self.neutron.show_vip(vip_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         vip_info = []
         vips = self.neutron.list_vips()['vips']
         for vip in vips:
+            if not all_projects and project_id and vip['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and vip['tenant_id'] != self.session.get_project_id():
+                continue
             vip_info.append({
                 'id': vip['id'],
                 'name': vip['name']
@@ -574,13 +731,7 @@ class PoolVIP(object):
         return vip['vip']['id']
 
 
-class Member(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class Member(BaseNetwork):
 
     def create(self, instance_ip, pool_id, protocol_port, weight=1):
         member_body = {
@@ -614,10 +765,14 @@ class Member(object):
     def load(self, member_id):
         self.member = self.neutron.show_member(member_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         member_info = []
         members = self.neutron.list_members()['members']
         for member in members:
+            if not all_projects and project_id and member['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and member['tenant_id'] != self.session.get_project_id():
+                continue
             member_info.append(member['id'])
         return member_info
 
@@ -636,13 +791,7 @@ class Member(object):
         return member['member']['id']
 
 
-class Monitor(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class Monitor(BaseNetwork):
 
     def create(self, monitor_type, delay=5, timeout=5, max_retries=3,
                http_method='GET', url_path='/', expected_codes='200'):
@@ -668,6 +817,9 @@ class Monitor(object):
 
     def delete(self, monitor_id=None):
         monitor = self.get(monitor_id)
+        # Disassociate all pools from monitor before deleting
+        for pool in monitor['health_monitor']['pools']:
+            self.neutron.disassociate_health_monitor(pool['pool_id'], monitor['health_monitor']['id'])
         # Allow 10 seconds before a monitor fails to delete
         for _ in range(10):
             try:
@@ -685,10 +837,14 @@ class Monitor(object):
     def load(self, monitor_id):
         self.monitor = self.neutron.show_health_monitor(monitor_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         monitor_info = []
         monitors = self.neutron.list_health_monitors()['health_monitors']
         for monitor in monitors:
+            if not all_projects and project_id and monitor['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and monitor['tenant_id'] != self.session.get_project_id():
+                continue
             monitor_info.append(monitor['id'])
         return monitor_info
 
@@ -707,13 +863,7 @@ class Monitor(object):
         return monitor['health_monitor']['id']
 
 
-class lbaasLB(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class lbaasLB(BaseNetwork):
 
     def create(self, name, subnet_id, description=''):
         lb_body = {
@@ -746,10 +896,14 @@ class lbaasLB(object):
     def load(self, loadbalancer_id):
         self.lb = self.neutron.show_loadbalancer(loadbalancer_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         lb_info = []
         lbs = self.neutron.list_loadbalancers()['loadbalancers']
         for lb in lbs:
+            if not all_projects and project_id and lb['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and lb['tenant_id'] != self.session.get_project_id():
+                continue
             lb_info.append({
                 'id': lb['id'],
                 'name': lb['name']
@@ -783,13 +937,7 @@ class lbaasLB(object):
         return lb['loadbalancer']['id']
 
 
-class lbaasListener(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class lbaasListener(BaseNetwork):
 
     def create(self, name, loadbalancer_id, default_pool_id, protocol,
                protocol_port, description='', connection_limit=None):
@@ -842,10 +990,14 @@ class lbaasListener(object):
     def load(self, listener_id):
         self.listener = self.neutron.show_listener(listener_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         listener_info = []
         listeners = self.neutron.list_listeners()['listeners']
         for listener in listeners:
+            if not all_projects and project_id and listener['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and listener['tenant_id'] != self.session.get_project_id():
+                continue
             listener_info.append({
                 'id': listener['id'],
                 'name': listener['name']
@@ -871,13 +1023,7 @@ class lbaasListener(object):
         return listener['listener']['id']
 
 
-class lbaasPool(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class lbaasPool(BaseNetwork):
 
     def create(self, name, method, protocol, loadbalancer_id, description=''):
         method = method.upper()
@@ -980,10 +1126,14 @@ class lbaasPool(object):
     def load(self, pool_id):
         self.pool = self.neutron.show_lbaas_pool(pool_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         pool_info = []
         pools = self.neutron.list_lbaas_pools()['pools']
         for pool in pools:
+            if not all_projects and project_id and pool['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and pool['tenant_id'] != self.session.get_project_id():
+                continue
             pool_info.append({
                 'id': pool['id'],
                 'name': pool['name']
@@ -1020,13 +1170,7 @@ class lbaasPool(object):
         return pool['pool']['id']
 
 
-class lbaasMonitor(object):
-
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
+class lbaasMonitor(BaseNetwork):
 
     def create(self, pool_id, monitor_type, delay=5, timeout=5, max_retries=3,
                http_method='GET', url_path='/', expected_codes='200'):
@@ -1082,10 +1226,14 @@ class lbaasMonitor(object):
     def load_monitor(self, monitor_id):
         self.monitor = self.neutron.show_lbaas_healthmonitor(monitor_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False):
         monitor_info = []
         monitors = self.neutron.list_lbaas_healthmonitors()['healthmonitors']
         for monitor in monitors:
+            if not all_projects and project_id and monitor['tenant_id'] != project_id:
+                continue
+            if not all_projects and not project_id and monitor['tenant_id'] != self.session.get_project_id():
+                continue
             monitor_info.append(monitor['id'])
         return monitor_info
 
@@ -1104,16 +1252,10 @@ class lbaasMonitor(object):
         return monitor['healthmonitor']['id']
 
 
-class Quota(object):
+class Quota(BaseNetwork):
 
-    def __init__(self, session, region_name=None, api_version=2):
-        # Create the neutron object which handles interaction with the API
-        self.neutron = nclient.Client(session=session,
-                                      region_name=region_name)
-        self.api_version = api_version
-
-    def get(self, tenant_id):
-        return self.neutron.show_quota(tenant_id=tenant_id)['quota']
+    def get(self, project_id):
+        return self.neutron.show_quota(tenant_id=project_id)['quota']
 
 
 class OSNetworkError(Exception):

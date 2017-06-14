@@ -4,16 +4,20 @@ import logging
 import glanceclient.client as gclient
 
 
-class Image(object):
+class BaseImage(object):
 
     def __init__(self, session, region_name=None, api_version=2):
         # Create the glance object which handles interaction with the API
         self.glance = gclient.Client(str(api_version),
                                      session=session,
                                      region_name=region_name)
+        self.session = session
         self.api_version = api_version
 
-    def upload(self, image_name, image_format, image_file):
+
+class Image(BaseImage):
+
+    def create(self, image_name, image_format, image_file):
         # Upload an image to glance from a file
         image_data = open(image_file, 'rb')
         logging.debug('Uploading image %s from file %s', image_name, image_file)
@@ -25,8 +29,13 @@ class Image(object):
 
     def delete(self, image_id=None):
         image = self.get(image_id)
-        self.glance.delete(image.id)
-        logging.debug('Deleted image %s with ID %s', image.name, image.id)
+        try:
+            self.glance.images.delete(image.id)
+            logging.debug('Deleted image %s with ID %s', image.name, image.id)
+            return True
+        except Exception:
+            logging.error('Failed to delete image %s with ID %s', image.name, image.id)
+            return False
 
     def wait_for_active(self, image_id=None):
         image = self.get(image_id)
@@ -54,13 +63,21 @@ class Image(object):
     def load(self, image_id):
         self.image = self.glance.images.get(image_id)
 
-    def list(self):
+    def list(self, project_id=None, all_projects=False, include_public=False):
         images = self.glance.images.list()
         image_info = []
         for image in images:
+            if image.visibility == 'public' and not include_public:
+                continue
+            if not all_projects and project_id and image.owner != project_id:
+                continue
+            if not all_projects and not project_id and image.owner != self.session.get_project_id():
+                continue
             image_info.append({
                 'id': image.id,
-                'name': image.name
+                'name': image.name,
+                'owner': image.owner,
+                'public': image.visibility == 'public'
             })
         return image_info
 
@@ -78,7 +95,15 @@ class Image(object):
         image = self.get(image_id, use_cached)
         return image.name
 
-    def get_id(self):
+    def get_id(self, image_name=None, include_public=True):
+        if image_name:
+            images = self.glance.images.list()
+            for image in images:
+                if image.visibility == 'public' and not include_public:
+                    continue
+                if image.name == image_name:
+                    return image.id
+            raise OSImageError('Image %s was not found' % image_name)
         image = self.get(use_cached=True)
         return image.id
 

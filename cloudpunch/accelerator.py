@@ -9,6 +9,8 @@ import yaml
 import time
 import re
 
+import glanceclient.exc
+
 from tabulate import tabulate
 from concurrent.futures import ThreadPoolExecutor
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -19,12 +21,13 @@ from cloudpunch.ostlib import osuser
 from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
+from cloudpunch.ostlib import osimage
 
 
 class Accelerator(object):
 
     def __init__(self, config, creds, env, admin_mode=False, manual_mode=False,
-                 reuse_mode=False, yaml_mode=False, insecure_mode=False):
+                 reuse_mode=False, yaml_mode=False, verify=True):
         # Save all arguments
         self.config = config.get_config()
         self.creds = creds
@@ -33,7 +36,7 @@ class Accelerator(object):
         self.manual_mode = manual_mode
         self.reuse_mode = reuse_mode
         self.yaml_mode = yaml_mode
-        self.insecure_mode = insecure_mode
+        self.verify = verify
 
         # Randomized ID used to identify the resources created by a run
         self.cp_id = random.randint(1000000, 9999999)
@@ -50,6 +53,12 @@ class Accelerator(object):
 
         # Stores external networks
         self.ext_networks = {
+            'env1': None,
+            'env2': None
+        }
+
+        # Stores image ids (because we allow image names)
+        self.images = {
             'env1': None,
             'env2': None
         }
@@ -108,8 +117,8 @@ class Accelerator(object):
             logging.info(e.message)
         except KeyboardInterrupt:
             pass
-        except Exception as e:
-            logging.error('%s: %s', type(e).__name__, e.message)
+        # except Exception as e:
+        #     logging.error('%s: %s', type(e).__name__, e.message)
         finally:
             # Attempts to remove all resources. Any left over will be saved to a file for later removal
             self.cleanup()
@@ -127,7 +136,7 @@ class Accelerator(object):
                          self.creds[label].get_creds()['auth_url'],
                          self.creds[label].get_creds()['region_name'])
             # Create the Keystone session
-            self.sessions[label] = osuser.Session(self.creds[label], verify=self.insecure_mode).get_session()
+            self.sessions[label] = osuser.Session(self.creds[label], verify=self.verify).get_session()
             # Setup user and project (if admin mode), security group. and keypair
             self.setup_environment(label)
             # Find the external network
@@ -137,6 +146,18 @@ class Accelerator(object):
             self.ext_networks[label].find_ext_network(self.env[label]['external_network'])
             logging.info('Attaching instances to external network %s with ID %s',
                          self.ext_networks[label].get_name(), self.ext_networks[label].get_id())
+            # Find image IDs
+            image = osimage.Image(self.sessions[label],
+                                  self.creds[label].get_region(),
+                                  self.env[label]['api_versions']['glance'])
+            try:
+                # If image_name is a UUID
+                self.images[label] = image.get_name(self.env[label]['image_name'])
+            except glanceclient.exc.HTTPNotFound:
+                # If image_name is a name
+                self.images[label] = image.get_id(self.env[label]['image_name'])
+            logging.info('Booting instances using image %s with ID %s',
+                         image.get_name(self.images[label]), self.images[label])
             # When split mode is enabled env1 contains the master and servers, env2 contains the clients
             # When disabled, env1 contains everything
             if label == 'env1':
@@ -176,8 +197,8 @@ class Accelerator(object):
 
         # Create security group and add rules based on config
         logging.info('Creating security group')
-        secgroup = oscompute.SecGroup(self.sessions[label], self.creds[label].get_region(),
-                                      self.env[label]['api_versions']['nova'])
+        secgroup = osnetwork.SecurityGroup(self.sessions[label], self.creds[label].get_region(),
+                                           self.env[label]['api_versions']['nova'])
         secgroup.create(self.cp_name)
         for rule in self.env[label]['secgroup_rules']:
             secgroup.add_rule(rule[0], rule[1], rule[2])
@@ -226,7 +247,7 @@ class Accelerator(object):
         instance = oscompute.Instance(self.sessions[label], self.creds[label].get_region(),
                                       self.env[label]['api_versions']['nova'])
         instance.create(master_name,
-                        self.env[label]['image_name'],
+                        self.images[label],
                         self.env[label]['master']['flavor'],
                         network.get_id(),
                         self.env[label]['master']['availability_zone'],
@@ -431,7 +452,7 @@ class Accelerator(object):
         instance = oscompute.Instance(self.sessions[label], self.creds[label].get_region(),
                                       self.env[label]['api_versions']['nova'])
         instance.create(instance_map['name'],
-                        self.env[label]['image_name'],
+                        self.images[label],
                         instance_map['flavor'],
                         instance_map['network'].get_id(),
                         avail_zone,
@@ -1066,7 +1087,7 @@ class Accelerator(object):
                                                cleanup_file=fname,
                                                cleanup_data=cleanup_data,
                                                cleanup_resources=self.config['cleanup_resources'],
-                                               insecure_mode=self.insecure_mode)
+                                               verify=self.verify)
             resource_cleanup.run()
 
 

@@ -1,6 +1,17 @@
 # Change Log
 A list of notable changes will be documented here
 
+## 1.4.0 - 2017-06-14
+### Added
+- Cleanup now has the flag `-n, --dry-run` when performing a search. This will prevent resources from being deleted
+- Cleanup now has the flag `-a, --names` when performing a search. It will print out the UUIDs and names of found resources
+
+### Changed
+- Security groups are now made through Neutron instead of Nova (deprecated in novaclient 8)
+- Images are now searched inside Glance instead of Nova (deprecated in novaclient 9)
+- Cleanup will now only stay within the sourced project when an admin user
+- Cleanup will now not list out repeated neutron resources
+
 ## 1.3.1 - 2017-05-01
 ### Added
 - availability_zone is now an option under server and client volume

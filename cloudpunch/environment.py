@@ -15,6 +15,7 @@ class Environment(object):
             'public_key_file': '~/.ssh/id_rsa.pub',
             'api_versions': {
                 'cinder': 2,
+                'glance': 2,
                 'neutron': 2,
                 'nova': 2,
                 'lbaas': 2
