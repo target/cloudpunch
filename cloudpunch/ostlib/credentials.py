@@ -7,6 +7,22 @@ import getpass
 class Credentials(object):
 
     def __init__(self, openrc_file=None, password=None, no_env=False, interactive=False, use_admin=False):
+        """
+        Handles loading OpenStack credentials from the environment and OpenRC files
+
+        Parameters
+        ----------
+        openrc_file : str
+            file path to an OpenRC file
+        password : str
+            password to authenticate to OpenStack
+        no_env : bool
+            do not load from environment if True
+        interactive : bool
+            ask user for password if not found in environment and OpenRC file if True
+        use_admin : bool
+            ignore if project or tenant information is missing if True
+        """
         self.creds = {}
         self.api_version = 2
         # List of accepted keys for Keystone version 2 and 3
@@ -80,8 +96,17 @@ class Credentials(object):
             self.api_version = 3
 
     def loadrc(self, openrc_file):
+        """
+        Load in an OpenRC file into the credentials attribute
+
+        Parameters
+        ----------
+        openrc_file : str
+            file path to an OpenRC file
+        """
         logging.debug('Loading OpenStack authentication information from file %s', openrc_file)
-        contents = open(openrc_file).read()
+        with open(openrc_file, 'r') as f:
+            contents = f.read()
         # Regex to find export OS_****=****
         export_re = re.compile('export OS_([A-Z_]*)="?(.*)')
         for line in contents.splitlines():
@@ -104,6 +129,9 @@ class Credentials(object):
                 self.creds[name.lower()] = value
 
     def loadenv(self):
+        """
+        Load OpenStack credentials from the environment into the credentials attribute
+        """
         logging.debug('Loading OpenStack authentication information from environment')
         # Grab any OS_ found in environment
         for var in os.environ:
@@ -115,9 +143,26 @@ class Credentials(object):
                 self.creds[var[3:].lower()] = value
 
     def get_creds(self):
+        """
+        Returns the full credentials attribute
+
+        Returns
+        -------
+        dict
+            The full credentials attribute, contains all OS_ based variables found in
+            OpenRC files and the environment
+        """
         return self.creds
 
     def get_auth(self):
+        """
+        Returns only the required credentials information for the Keystone API version
+
+        Returns
+        -------
+        dict
+            The required credentials for the Keystone API version
+        """
         # Only return accepted keys from the auth_keys dictionary
         # This is to prevent exceptions thrown from keystone session
         returnDict = {}
@@ -127,31 +172,114 @@ class Credentials(object):
         return returnDict
 
     def get_version(self):
+        """
+        Returns the Keystone API version
+
+        Returns
+        -------
+        int
+            The Keystone API version
+        """
         return self.api_version
 
     def get_region(self):
-        if 'region_name' in self.creds:
-            return self.creds['region_name']
-        return None
+        """
+        Returns the OpenStack region
+
+        Returns
+        -------
+        str
+            The OpenStack region
+        """
+        return self.creds.get('region_name')
 
     def get_cacert(self):
-        if 'cacert' in self.creds:
-            return self.creds['cacert']
-        return None
+        """
+        Returns the path to the ca certificate
+
+        Returns
+        -------
+        str
+            Path to the ca certificate
+        """
+        return self.creds.get('cacert')
 
     def get_project(self):
-        if self.api_version == 2:
-            return self.creds['tenant_id'] if 'tenant_id' in self.creds else self.creds['tenant_name']
-        elif self.api_version == 3:
-            return self.creds['project_id'] if 'project_id' in self.creds else self.creds['project_name']
+        """
+        Returns the project/tenant id or name (if id is not in the credentials attribute)
 
-    def change_user(self, username, password, project_name):
+        Returns
+        -------
+        str
+            The project/tenant id or name
+        """
+        if self.api_version == 2:
+            return self.creds.get('tenant_id') or self.creds.get('tenant_name')
+        else:
+            return self.creds.get('project_id') or self.creds.get('project_name')
+
+    def get_project_specific(self, project_format='id'):
+        """
+        Returns a specific project/tenant id or name based on project_format
+
+        Parameters
+        ----------
+        project_format : str
+            id or name, specifies what format to return
+
+        Returns
+        -------
+        str
+            The project/tenant id or name (based on project_format)
+        """
+        if self.api_version == 2:
+            return self.creds.get('tenant_%s' % project_format)
+        else:
+            return self.creds.get('project_%s' % project_format)
+
+    def change_project(self, project, project_format='id'):
+        """
+        Changes the credentials attribute to change the tenant/project id or name. It will delete the
+        opposite of project_format
+
+        Parameters
+        ----------
+        project : str
+            name or id of the new project/tenant
+        project_format : str
+            id or name, specifies what format to change
+        """
+        name = 'tenant' if self.api_version == 2 else 'project'
+        self.creds['%s_%s' % (name, project_format)] = project
+        opposite_format = 'name' if project_format == 'id' else 'id'
+        del self.creds['%s_%s' % (name, opposite_format)]
+
+    def change_user(self, username, password):
+        """
+        Changes the credentials attribute to change the user and password
+
+        Parameters
+        ----------
+        username : str
+            the new username
+        password : str
+            the new password
+        """
         self.creds['username'] = username
         self.creds['password'] = password
-        if self.api_version == 3:
-            self.creds['project_name'] = project_name
-        else:
-            self.creds['tenant_name'] = project_name
+
+    def change_user_domain(self, user_domain, domain_format='name'):
+        """
+        Change the credentials attribute for a new user domain name/id
+
+        Parameters
+        ----------
+        user_domain : str
+            the new user domain name/id (based on domain_format)
+        domain_format : str
+            name or id, specifies what format to change
+        """
+        self.creds['user_domain_%s' % domain_format] = user_domain
 
 
 class CredError(Exception):

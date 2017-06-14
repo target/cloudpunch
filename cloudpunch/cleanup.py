@@ -12,12 +12,15 @@ from cloudpunch.ostlib import osvolume
 
 class Cleanup(object):
 
-    def __init__(self, creds, cleanup_file, cleanup_data=None, cleanup_resources=True, insecure_mode=False):
+    def __init__(self, creds, cleanup_file, cleanup_data=None, cleanup_resources=True,
+                 verify=False, dry_run=False, names=False):
         self.creds = creds
         self.cleanup_file = cleanup_file
         self.cleanup_data = cleanup_data
         self.cleanup_resources = cleanup_resources
-        self.insecure_mode = insecure_mode
+        self.verify = verify
+        self.dry_run = dry_run
+        self.names = names
 
     def run(self):
         # We need to search for resources that cloudpunch has made
@@ -39,15 +42,16 @@ class Cleanup(object):
             except ValueError:
                 raise CleanupError('Cleanup file %s is not a valid json format' % self.cleanup_file)
 
-        # Only delete resources if cleanup_resources is True
-        if self.cleanup_resources:
-            cleanup_info = self.clean(cleanup_info)
-        # Save any left over resources
-        self.check_resources(cleanup_info)
+        if not self.dry_run:
+            # Only delete resources if cleanup_resources is True
+            if self.cleanup_resources:
+                cleanup_info = self.clean(cleanup_info)
+            # Save any left over resources
+            self.check_resources(cleanup_info)
 
     def search_resources(self):
         # Create the OpenStack session
-        session = osuser.Session(self.creds, self.insecure_mode).get_session()
+        session = osuser.Session(self.creds, self.verify).get_session()
 
         resources = {}
         # Set API versions
@@ -138,7 +142,7 @@ class Cleanup(object):
             },
             'secgroups': {
                 'label': 'security groups',
-                'object': oscompute.SecGroup(session, region, versions['nova'])
+                'object': osnetwork.SecurityGroup(session, region, versions['nova'])
             },
             'users': {
                 'label': 'users',
@@ -150,7 +154,7 @@ class Cleanup(object):
             }
         }
 
-        network_list = resource_breakdown['master-network']['object'].list(self.creds.get_project())
+        network_list = resource_breakdown['master-network']['object'].list()
         network_search = {
             'master-network': 'master',
             'server-network': '-s-',
@@ -163,6 +167,8 @@ class Cleanup(object):
             try:
                 if 'network' not in resource:
                     resource_list = resource_object.list()
+                else:
+                    resource_list = network_list
             # Used to catch forbidden responses from looking for users and projects
             except keystoneauth1.exceptions.http.Forbidden:
                 continue
@@ -175,18 +181,37 @@ class Cleanup(object):
                             if ips['floating']:
                                 float_object = resource_breakdown['floaters']['object']
                                 found_resources.append(float_object.get_id(ips['floating'][0]))
+                                if self.names:
+                                    logging.info('Found %s %s (%s)',
+                                                 resource_breakdown[resource]['label'][:-1],
+                                                 float_object.get_id(ips['floating'][0]),
+                                                 ips['floating'][0])
+                # Network search
                 elif 'network' in resource:
-                    for current_network in network_list:
-                        if ('cloudpunch' in current_network['name'] and
-                                network_search[resource] in current_network['name']):
-                            found_resources.append(current_network['id'])
+                    if ('cloudpunch' in current_resource['name'] and
+                            network_search[resource] in current_resource['name']):
+                        found_resources.append(current_resource['id'])
+                        if self.names:
+                            logging.info('Found %s %s (%s)',
+                                         resource_breakdown[resource]['label'][:-1],
+                                         current_resource['id'],
+                                         current_resource['name'])
                 # Keypairs do not have an id, only a name
                 elif resource == 'keypairs':
                     if 'cloudpunch' in current_resource:
                         found_resources.append(current_resource)
+                        if self.names:
+                            logging.info('Found %s %s',
+                                         resource_breakdown[resource]['label'][:-1],
+                                         current_resource)
                 # Everything else
                 elif 'cloudpunch' in current_resource['name']:
                     found_resources.append(current_resource['id'])
+                    if self.names:
+                        logging.info('Found %s %s (%s)',
+                                     resource_breakdown[resource]['label'][:-1],
+                                     current_resource['id'],
+                                     current_resource['name'])
             logging.info('Found %s %s', len(found_resources), resource_breakdown[resource]['label'])
             if len(found_resources) > 0:
                 resources[resource] = found_resources
@@ -196,7 +221,7 @@ class Cleanup(object):
 
     def clean(self, cleanup_info):
         # Create the OpenStack session
-        session = osuser.Session(self.creds, self.insecure_mode).get_session()
+        session = osuser.Session(self.creds, self.verify).get_session()
 
         # Load in API versions
         versions = cleanup_info['api_versions']
@@ -282,7 +307,7 @@ class Cleanup(object):
             },
             'secgroups': {
                 'label': 'security groups',
-                'object': oscompute.SecGroup(session, region, versions['nova'])
+                'object': osnetwork.SecurityGroup(session, region, versions['nova'])
             },
             'users': {
                 'label': 'users',
@@ -293,15 +318,6 @@ class Cleanup(object):
                 'object': osuser.Project(session, region, versions['keystone'])
             }
         }
-
-        # Special case to disassociate monitors from pools before deleting them
-        if 'pools' in cleanup_info:
-            pool_object = resource_breakdown['pools']['object']
-            for pool_id in cleanup_info['pools'][:]:
-                try:
-                    pool_object.disassociate_monitors(pool_id)
-                except Exception:
-                    pass
 
         for resource in delete_order:
             if resource in cleanup_info:
