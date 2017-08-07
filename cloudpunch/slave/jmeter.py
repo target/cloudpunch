@@ -26,6 +26,8 @@ class CloudPunchTest(Thread):
                     'threads': 10,
                     'ramp-up': 0,
                     'duration': 60,
+                    'port': 8000,
+                    'path': '/api/system/health',
                     'gunicorn': {
                         'workers': 5,
                         'threads': 4
@@ -96,15 +98,16 @@ class CloudPunchTest(Thread):
 
         # Change thread number
         xml_short['ThreadGroup']['stringProp'][1]['#text'] = str(jconfig['threads'])
-
         # Change ramp up time
         xml_short['ThreadGroup']['stringProp'][2]['#text'] = str(jconfig['ramp-up'])
-
         # Change duration
         xml_short['ThreadGroup']['stringProp'][3]['#text'] = str(jconfig['duration'])
-
         # Change target
         xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][0]['#text'] = target
+        # Change port
+        xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][1]['#text'] = str(jconfig['port'])
+        # Change path
+        xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][6]['#text'] = str(jconfig['path'])
 
         with open(NEW_JMETER_FILE, 'w') as f:
             f.write(xmltodict.unparse(parsed_xml).encode('utf-8'))

@@ -176,7 +176,7 @@ def cp_app():
                              action='store',
                              dest='format',
                              default='yaml',
-                             help='format to convert results to (json, yaml, table, csv)')
+                             help='format to convert results to (json, yaml, table, csv, graph)')
     post_parser.add_argument('-o',
                              '--output',
                              action='store',
@@ -187,6 +187,10 @@ def cp_app():
                              action='store_true',
                              dest='raw_mode',
                              help='converted results are raw numbers')
+    post_parser.add_argument('--open',
+                             action='store_true',
+                             dest='open_graph',
+                             help='open generated graph after creation (graph format only)')
     # Master parser
     master_parser = subparsers.add_parser('master',
                                           help='start the master server')
@@ -297,7 +301,8 @@ def cp_app():
         post_process = post.Post(filename=args.results_file,
                                  format_type=args.format,
                                  output_file=args.output_file,
-                                 raw_mode=args.raw_mode)
+                                 raw_mode=args.raw_mode,
+                                 open_graph=args.open_graph)
         post_process.run()
 
     # Master workload

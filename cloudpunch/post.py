@@ -2,20 +2,25 @@ import yaml
 import json
 import os
 import logging
+import plotly
+import plotly.graph_objs as go
 
 from tabulate import tabulate
 
 SUPPORTED_TESTS = ['fio', 'iperf', 'stress', 'ping', 'jmeter']
-SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv']
+SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv', 'graph']
 
 
 class Post(object):
 
-    def __init__(self, filename, format_type='yaml', output_file=None, raw_mode=False):
+    def __init__(self, filename, format_type='yaml', output_file=None,
+                 raw_mode=False, open_graph=False):
         self.filename = filename
         self.format_type = format_type
         self.output_file = output_file
         self.raw_mode = raw_mode
+        self.open_graph = open_graph
+        self.overtime = False
 
     def run(self):
         # Check if results file exists
@@ -24,7 +29,8 @@ class Post(object):
 
         # Check if format type is valid
         if self.format_type not in SUPPORTED_FORMATS:
-            raise PostExcept('%s is not a valid format type. Must be json, yaml, table, or csv' % self.format_type)
+            raise PostExcept('%s is not a valid format type. Must be %s' % (self.format_type,
+                                                                            ', '.join(SUPPORTED_FORMATS)))
 
         # Load results file
         with open(self.filename) as f:
@@ -33,20 +39,31 @@ class Post(object):
             data = yaml.load(contents)
         except yaml.YAMLError as e:
             raise PostExcept(e)
+
         # List of tests inside the results file
         tests = data[0]['results'].keys()
+
+        # Check if this data is a summary or over time
+        for test in tests:
+            if isinstance(data[0]['results'][test], list):
+                self.overtime = True
+            elif self.overtime:
+                raise PostExcept('Results are a mix of summary and over time, only one is allowed')
 
         # Process results into a list
         results = self.create_list(tests, data)
 
         # Process the list for total, mean, median, mode, range
-        results = self.process_results(results)
+        if not self.overtime:
+            results = self.process_results(results)
 
         # Format the results
         results = self.format_results(results)
 
+        if self.format_type == 'graph':
+            return
         # Print out to a file if output_file is set
-        if self.output_file:
+        elif self.output_file:
             with open(self.output_file, 'w') as f:
                 f.write(results)
             logging.info('Saved converted results to %s', self.output_file)
@@ -61,63 +78,44 @@ class Post(object):
             if test not in SUPPORTED_TESTS:
                 logging.warning('%s is not a supported test', test)
                 continue
-            # Populate dictionaries with keys
-            if test == 'fio':
-                sequence = {}
-            else:
-                sequence = self.populate_dict(test)
 
             # Go through results data
-            for server in data:
-                try:
-                    if test == 'fio':
-                        for jobname in server['results'][test]:
-                            if jobname not in sequence:
-                                sequence[jobname] = self.populate_dict(test)
-                            for io_type in ['read', 'write']:
-                                for stat in ['latency_msec', 'iops', 'bandwidth_bytes', 'total_bytes']:
-                                    sequence[jobname][io_type][stat].append(server['results'][test][jobname][io_type][stat])
-                    elif test == 'iperf':
-                        for stat in ['bps', 'retransmits']:
-                            sequence[stat].append(server['results'][test][stat])
-                    elif test == 'stress':
-                        for iteration in server['results']['stress']:
-                            for stat in ['cpu', 'timeout', 'load']:
-                                sequence[stat].append(iteration[stat])
-                    elif test == 'ping':
-                        for stat in ['duration', 'latency']:
-                            sequence[stat].append(server['results'][test][stat])
-                    elif test == 'jmeter':
-                        for stat in ['requests_per_second', 'latency_msec', 'error_count', 'error_percent']:
-                            sequence[stat].append(server['results'][test][stat])
-                except KeyError:
-                    raise PostExcept('Server %s has an invalid format for test %s' % (server['hostname'], test))
-            results[test] = sequence
+            results[test] = self.create_sequence(test, data)
         return results
 
-    def populate_dict(self, test):
-        # Used to populate the dictionary
-        d = {}
-        if test == 'fio':
-            for label in ['read', 'write']:
-                d[label] = {}
-                for label2 in ['latency_msec', 'iops', 'bandwidth_bytes', 'total_bytes']:
-                    d[label][label2] = []
-        elif test == 'iperf':
-            for label in ['bps', 'retransmits']:
-                d[label] = []
-        elif test == 'stress':
-            for label in ['cpu', 'timeout', 'load']:
-                d[label] = []
-        elif test == 'ping':
-            for label in ['duration', 'latency']:
-                d[label] = []
-        elif test == 'jmeter':
-            for label in ['requests_per_second', 'latency_msec', 'error_count', 'error_percent']:
-                d[label] = []
-        else:
-            raise PostExcept('Unsupported test type %s' % test)
-        return d
+    def create_sequence(self, test, data):
+        sequence = {}
+        try:
+            for server in data:
+                if test == 'fio':
+                    for jobname in server['results'][test]:
+                        if jobname not in sequence:
+                            sequence[jobname] = {}
+                        for io_type in server['results'][test][jobname]:
+                            for stat in server['results'][test][jobname][io_type]:
+                                if stat not in sequence[jobname][io_type]:
+                                    sequence[jobname][io_type][stat] = []
+                                if self.overtime:
+                                    for result in server['results'][test][jobname][io_type][stat]:
+                                        sequence[jobname][io_type][stat].append(result[stat])
+                                else:
+                                    sequence[jobname][io_type][stat].append(server['results'][test][jobname][io_type][stat])
+                elif self.overtime:
+                    if server['hostname'] not in sequence:
+                        sequence[server['hostname']] = {}
+                    for time in server['results'][test]:
+                        for stat in time:
+                            if stat not in sequence[server['hostname']]:
+                                sequence[server['hostname']][stat] = []
+                            sequence[server['hostname']][stat].append(time[stat])
+                else:
+                    for stat in server['results'][test]:
+                        if stat not in sequence:
+                            sequence[stat] = []
+                        sequence[stat].append(server['results'][test][stat])
+        except KeyError:
+            raise PostExcept('Server %s has an invalid format for test %s' % (server['hostname'], test))
+        return sequence
 
     def process_results(self, data):
         results = {}
@@ -177,8 +175,8 @@ class Post(object):
                     converted[jobname][io_type] = {
                         'latency_msec': round(data[jobname][io_type]['latency_msec'], 2),
                         'iops': self.human_format(data[jobname][io_type]['iops']),
-                        'bandwidth_bytes': '%sBps' % self.human_format_bytes(data[jobname][io_type]['bandwidth_bytes']),
-                        'total_bytes': '%sB' % self.human_format_bytes(data[jobname][io_type]['total_bytes'])
+                        'bandwidth_bytes': '%sBps' % self.human_format(data[jobname][io_type]['bandwidth_bytes']),
+                        'total_bytes': '%sB' % self.human_format(data[jobname][io_type]['total_bytes'])
                     }
         elif test == 'iperf':
             converted = {
@@ -214,15 +212,6 @@ class Post(object):
         while abs(num) >= 1000:
             magnitude += 1
             num /= 1000.0
-        return '%.2f %s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
-
-    def human_format_bytes(self, num):
-        if num < 1024:
-            return round(num, 2)
-        magnitude = 0
-        while abs(num) >= 1024:
-            magnitude += 1
-            num /= 1024.0
         return '%.2f %s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
 
     def format_results(self, results):
@@ -303,6 +292,45 @@ class Post(object):
                 if current_table < len(tables):
                     final_table += '\n'
             return final_table
+        elif self.format_type == 'graph':
+            plot_schema = {'data': [], 'label': ''}
+            for test in results:
+                traces = []
+                for server in results[test]:
+                    x = plot_schema.copy()
+                    y = plot_schema.copy()
+                    if test == 'fio':
+                        pass
+                    elif test == 'iperf':
+                        for time in results[test][server]['time']:
+                            x['data'].append(time - results[test][server]['time'][0] + 1)
+                        x['label'] = 'Seconds'
+                        for bit in results[test][server]['bps']:
+                            y['data'].append(bit / 1000000000)
+                        y['label'] = 'Throughput (Gbps)'
+                    elif test == 'stress':
+                        pass
+                    elif test == 'ping':
+                        for time in results[test][server]['time']:
+                            x['data'].append(round(time - results[test][server]['time'][0] + 1))
+                        x['label'] = 'Seconds'
+                        y['data'] = results[test][server]['latency']
+                        y['label'] = 'Latency (msec)'
+                    elif test == 'jmeter':
+                        pass
+                    traces.append(go.Scatter(x=x['data'],
+                                             y=y['data'],
+                                             mode='lines+markers',
+                                             name=server))
+                layout = go.Layout(title='CloudPunch %s test' % test,
+                                   xaxis={'title': x['label']},
+                                   yaxis={'title': y['label']})
+                fig = go.Figure(data=traces, layout=layout)
+                filename = self.output_file
+                if not self.output_file:
+                    filename = 'cloudpunch-%s-%s.html' % (server.split('-')[1], test)
+                plotly.offline.plot(fig, filename=filename, auto_open=self.open_graph)
+                logging.info('Created HTML graph file %s', filename)
 
 
 class PostExcept(Exception):

@@ -64,6 +64,10 @@ The following options are given on the command-line when using cloudpunch cleanu
 
 - `-p, --password` - Provide a password to authenticate to OpenStack. This should only be used when in a non-interactive environment and the environment does not contain the password
 
+- `-n, --dry-run` - Do not delete after searching for resources
+
+- `-a, --names` - Show names and UUIDs of found resources
+
 - `--no-env` - Disables loading authentication information from the environment. Use this to force the OpenRC file over the environment
 
 - `--insecure` - Turn off SSL verification to the OpenStack API's

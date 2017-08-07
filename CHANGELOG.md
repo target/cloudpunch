@@ -1,6 +1,16 @@
 # Change Log
 A list of notable changes will be documented here
 
+## 1.5.0 - 2017-xx-xx
+### Added
+- New configuration options in the jmeter test. You can now specify `port` and `path` when connecting to a server
+- New `graph` format option in cloudpunch post. This option uses plotly to graph results into an HTML file
+
+### Changed
+- Fixed incorrect overtime results in the FIO test
+- stress-ng test now supports summary results
+- ping test no longer includes target
+
 ## 1.4.0 - 2017-06-14
 ### Added
 - Cleanup now has the flag `-n, --dry-run` when performing a search. This will prevent resources from being deleted
@@ -22,7 +32,7 @@ A list of notable changes will be documented here
 
 ## 1.3.0 - 2017-04-20
 ### Added
-- Loadbalancer support in front of servers and/or clients. See Configuration documentation for more information
+- Load balancer support in front of servers and/or clients. See Configuration documentation for more information
 - Custom test files can now be added into a `tests/` directory inside the current working directory. Any test files inside the configuration will be pushed over to the slaves to run
 - cloudpunch post now supports formatting results to json, yaml, table, and csv
 - cloudpunch post now calculates mean, median, mode, range, and total instead of just mean and total

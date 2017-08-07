@@ -80,31 +80,28 @@ fio:
   results:
     fio:
       fiotest:
-        - latency_msec: 0.59629
-          iops: 6518.19
-          bandwidth_bytes: 26059
-          total_bytes: 23636
-          time: 1475079260
-        - latency_msec: 0.6225
-          iops: 6560.09
-          bandwidth_bytes: 26213
-          total_bytes: 23776
-          time: 1475079260
-        - latency_msec: 0
-          iops: 6438.64
-          bandwidth_bytes: 25744
-          total_bytes: 49300
-          time: 1475079261
-        - latency_msec: 0.63661
-          iops: 6430.81
-          bandwidth_bytes: 25708
-          total_bytes: 49232
-          time: 1475079261
-        - latency_msec: 0
-          iops: 6458.09
-          bandwidth_bytes: 25821
-          total_bytes: 75476
-          time: 1475079262
+        read:
+          - latency_msec: 0.59629
+            iops: 6518.19
+            bandwidth_bytes: 26059
+            total_bytes: 23636
+            time: 1475079260
+          - latency_msec: 0.6225
+            iops: 6560.09
+            bandwidth_bytes: 26213
+            total_bytes: 23776
+            time: 1475079260
+        write:
+          - latency_msec: 0.59629
+            iops: 6518.19
+            bandwidth_bytes: 26059
+            total_bytes: 23636
+            time: 1475079260
+          - latency_msec: 0.6225
+            iops: 6560.09
+            bandwidth_bytes: 26213
+            total_bytes: 23776
+            time: 1475079260
 ```
 
 ##### Summary Results
@@ -257,19 +254,14 @@ Latency is in msec
   results:
     ping:
       - latency: 0.874
-        target: 10.0.0.6
         time: 1470152735.793147
       - latency: 0.256
-        target: 10.0.0.6
         time: 1470152736.792701
       - latency: 0.23
-        target: 10.0.0.6
         time: 1470152737.793253
       - latency: 0.224
-        target: 10.0.0.6
         time: 1470152738.792618
       - latency: 0.2
-        target: 10.0.0.6
         time: 1470152739.792757
 ```
 
@@ -279,9 +271,7 @@ Latency is in msec
 - hostname: cloudpunch-3803825-master-c1
   results:
     ping:
-      duration: 5
       latency: 0.2032
-      target: 10.0.0.6
 ```
 
 ## Stress-ng
@@ -292,7 +282,7 @@ Stress-ng is used for CPU usage tests. See [here](http://kernel.ubuntu.com/~ckin
 
 | Option           | Supported |
 | ---------------- | --------- |
-| overtime_results | No        |
+| overtime_results | Yes       |
 
 
 ### Configuration
@@ -338,7 +328,7 @@ stress:
 
 Stress-ng results are what random number stress-ng was assigned to run at each iteration
 
-##### Sample Results
+##### Overtime Results
 
 ```yaml
 - hostname: cloudpunch-8547561-c-r1-n1-c8
@@ -359,6 +349,17 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
       - load: 53
         cpu: 2
         timeout: 5
+```
+
+##### Summary Results
+
+```yaml
+- hostname: cloudpunch-8547561-c-r1-n1-c8
+  results:
+    stress:
+      load: 69
+      cpu: 1
+      timeout: 5
 ```
 
 ## JMeter
@@ -398,11 +399,17 @@ jmeter:
 
 ##### Client Configuration Key Reference
 
+- `target` - the IP address or hostname to connect to (this is only available without server_client_mode)
+
 - `threads` - the number of threads to start for http requests
 
 - `ramp-up` - the number of seconds for the threads to start
 
 - `duration` - the number of seconds to run the test for
+
+- `port` - the port to connect to
+
+- `path` - the URL path to connect to
 
 ###### Default Client Configuration
 
@@ -411,6 +418,8 @@ jmeter:
   threads: 10
   ramp-up: 0
   duration: 60
+  port: 8000
+  path: /api/system/health
 ```
 
 ### Results

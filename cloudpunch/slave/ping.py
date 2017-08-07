@@ -49,18 +49,16 @@ class CloudPunchTest(Thread):
                 if self.config['overtime_results']:
                     self.final_results.append({
                         'time': now,
-                        'target': target,
                         'latency': latency
                     })
                 # Summary results
                 else:
                     results.append(latency)
-            # Ping failed, report error if over time
+            # Ping failed
             elif 'Request timeout' in line and self.config['overtime_results']:
                 self.final_results.append({
                     'time': now,
-                    'target': target,
-                    'error': 'timeout'
+                    'latency': 0
                 })
 
         ping.stdout.close()
@@ -69,14 +67,10 @@ class CloudPunchTest(Thread):
         if not self.config['overtime_results']:
             try:
                 self.final_results = {
-                    'target': target,
-                    'duration': int(duration),
                     'latency': sum(results) / len(results)
                 }
             except ZeroDivisionError:
                 self.final_results = {
-                    'target': target,
-                    'duration': int(duration),
                     'latency': -1
                 }
 
