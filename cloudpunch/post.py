@@ -14,10 +14,12 @@ SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv', 'graph']
 class Post(object):
 
     def __init__(self, filename, format_type='yaml', output_file=None,
-                 raw_mode=False, open_graph=False):
+                 stat=None, fiotest=None, raw_mode=False, open_graph=False):
         self.filename = filename
         self.format_type = format_type
         self.output_file = output_file
+        self.stat = stat
+        self.fiotest = fiotest
         self.raw_mode = raw_mode
         self.open_graph = open_graph
         self.overtime = False
@@ -45,7 +47,11 @@ class Post(object):
 
         # Check if this data is a summary or over time
         for test in tests:
-            if isinstance(data[0]['results'][test], list):
+            if test == 'fio':
+                fio_test = data[0]['results'][test].keys()[0]
+                if isinstance(data[0]['results'][test][fio_test]['read'], list):
+                    self.overtime = True
+            elif isinstance(data[0]['results'][test], list):
                 self.overtime = True
             elif self.overtime:
                 raise PostExcept('Results are a mix of summary and over time, only one is allowed')
@@ -88,18 +94,36 @@ class Post(object):
         try:
             for server in data:
                 if test == 'fio':
-                    for jobname in server['results'][test]:
-                        if jobname not in sequence:
-                            sequence[jobname] = {}
-                        for io_type in server['results'][test][jobname]:
-                            for stat in server['results'][test][jobname][io_type]:
-                                if stat not in sequence[jobname][io_type]:
-                                    sequence[jobname][io_type][stat] = []
-                                if self.overtime:
-                                    for result in server['results'][test][jobname][io_type][stat]:
-                                        sequence[jobname][io_type][stat].append(result[stat])
-                                else:
-                                    sequence[jobname][io_type][stat].append(server['results'][test][jobname][io_type][stat])
+                    if self.overtime:
+                        if server['hostname'] not in sequence:
+                            sequence[server['hostname']] = {}
+                        for jobname in server['results'][test]:
+                            if jobname not in sequence:
+                                sequence[server['hostname']][jobname] = {}
+                            for io_type in server['results'][test][jobname]:
+                                if io_type not in sequence[server['hostname']][jobname]:
+                                    sequence[server['hostname']][jobname][io_type] = {}
+                                for time in server['results'][test][jobname][io_type]:
+                                    for stat in time:
+                                        if stat not in sequence[server['hostname']][jobname][io_type]:
+                                            sequence[server['hostname']][jobname][io_type][stat] = []
+                                        sequence[server['hostname']][jobname][io_type][stat].append(time[stat])
+                    else:
+                        for jobname in server['results'][test]:
+                            if jobname not in sequence:
+                                sequence[jobname] = {}
+                            for io_type in server['results'][test][jobname]:
+                                if io_type not in sequence[jobname]:
+                                    sequence[jobname][io_type] = {}
+                                for stat in server['results'][test][jobname][io_type]:
+                                    if stat not in sequence[jobname][io_type]:
+                                        sequence[jobname][io_type][stat] = []
+                                    if self.overtime:
+                                        for result in server['results'][test][jobname][io_type][stat]:
+                                            sequence[jobname][io_type][stat].append(result[stat])
+                                    else:
+                                        num = server['results'][test][jobname][io_type][stat]
+                                        sequence[jobname][io_type][stat].append(num)
                 elif self.overtime:
                     if server['hostname'] not in sequence:
                         sequence[server['hostname']] = {}
@@ -293,36 +317,132 @@ class Post(object):
                     final_table += '\n'
             return final_table
         elif self.format_type == 'graph':
-            plot_schema = {'data': [], 'label': ''}
             for test in results:
                 traces = []
                 for server in results[test]:
-                    x = plot_schema.copy()
-                    y = plot_schema.copy()
+                    x = {'data': [], 'label': ''}
+                    y = {'data': [], 'label': ''}
                     if test == 'fio':
-                        pass
+                        x2 = {'data': [], 'label': ''}
+                        y2 = {'data': [], 'label': ''}
+                        fio_tests = results[test][server].keys()
+                        if len(fio_tests) == 1:
+                            process_test = fio_tests[0]
+                            if self.fiotest and process_test != self.fiotest:
+                                logging.warning('Results has only one fio test %s, ignoring given test %s',
+                                                process_test, self.fiotest)
+                        elif self.fiotest:
+                            if self.fiotest not in fio_tests:
+                                raise PostExcept('Results do not have fio test %s' % self.fiotest)
+                            process_test = self.fiotest
+                        else:
+                            raise PostExcept('Results have multiple fio tests, supply one with -t')
+                        for io_type in ['read', 'write']:
+                            for time in results[test][server][process_test][io_type]['time']:
+                                current_time = time - results[test][server][process_test][io_type]['time'][0] + 1
+                                if io_type == 'read':
+                                    x['data'].append(current_time)
+                                else:
+                                    x2['data'].append(current_time)
+                            x['label'] = 'Seconds'
+                            if self.stat == 'iops' or not self.stat:
+                                self.stat = 'iops'
+                                stat_label = 'iops'
+                                y['label'] = 'Input/Output Operations per Second (IOPS)'
+                            elif self.stat == 'latency':
+                                stat_label = 'latency_msec'
+                                y['label'] = 'Latency (msec)'
+                            elif self.stat == 'bandwidth':
+                                stat_label = 'bandwidth_bytes'
+                                y['label'] = 'Bandwidth (Bps)'
+                            elif self.stat == 'bytes':
+                                stat_label = 'total_bytes'
+                                y['label'] = 'Total Bytes'
+                            else:
+                                raise PostExcept('FIO does not have the stat %s to graph' % self.stat)
+                            current_seq = results[test][server][process_test][io_type][stat_label]
+                            if io_type == 'read':
+                                y['data'] = current_seq
+                            else:
+                                y2['data'] = current_seq
                     elif test == 'iperf':
                         for time in results[test][server]['time']:
                             x['data'].append(time - results[test][server]['time'][0] + 1)
                         x['label'] = 'Seconds'
-                        for bit in results[test][server]['bps']:
-                            y['data'].append(bit / 1000000000)
-                        y['label'] = 'Throughput (Gbps)'
+                        if self.stat == 'bps' or not self.stat:
+                            self.stat = 'bps'
+                            for bit in results[test][server]['bps']:
+                                y['data'].append(bit / 1000000000)
+                            y['label'] = 'Throughput (Gbps)'
+                        elif self.stat == 'retransmits':
+                            y['data'] = results[test][server]['retransmits']
+                            y['label'] = 'Retransmits'
+                        else:
+                            raise PostExcept('iPerf does not have the stat %s to graph' % self.stat)
                     elif test == 'stress':
-                        pass
+                        current_time = 0
+                        for time in results[test][server]['timeout']:
+                            x['data'].append(current_time)
+                            current_time += time
+                            x['data'].append(current_time)
+                        x['label'] = 'Seconds'
+                        if self.stat == 'load' or not self.stat:
+                            self.stat = 'load'
+                            for load in results[test][server]['load']:
+                                y['data'].append(load)
+                                y['data'].append(load)
+                            y['label'] = 'CPU Load'
+                        elif self.stat == 'cpu':
+                            for cpu in results[test][server]['cpu']:
+                                y['data'].append(cpu)
+                                y['data'].append(cpu)
+                            y['label'] = 'CPU Count'
+                        else:
+                            raise PostExcept('Stress does not have the stat %s to graph' % self.stat)
                     elif test == 'ping':
+                        if self.stat and self.stat != 'latency':
+                            logging.info('Ping does not have more than 1 stat to graph, ignoring stat')
+                        self.stat = 'latency'
                         for time in results[test][server]['time']:
                             x['data'].append(round(time - results[test][server]['time'][0] + 1))
                         x['label'] = 'Seconds'
                         y['data'] = results[test][server]['latency']
                         y['label'] = 'Latency (msec)'
                     elif test == 'jmeter':
-                        pass
-                    traces.append(go.Scatter(x=x['data'],
-                                             y=y['data'],
-                                             mode='lines+markers',
-                                             name=server))
-                layout = go.Layout(title='CloudPunch %s test' % test,
+                        x['data'] = results[test][server]['time']
+                        x['label'] = 'Seconds'
+                        if self.stat == 'requests' or not self.stat:
+                            self.stat = 'requests'
+                            y['data'] = results[test][server]['requests_per_second']
+                            y['label'] = 'Requests per Second'
+                        elif self.stat == 'ecount':
+                            y['data'] = results[test][server]['error_count']
+                            y['label'] = 'Error Count'
+                        elif self.stat == 'epercent':
+                            y['data'] = results[test][server]['error_percent']
+                            y['label'] = 'Error Percent'
+                        elif self.stat == 'latency':
+                            y['data'] = results[test][server]['latency_msec']
+                            y['label'] = 'Latency (msec)'
+                        else:
+                            raise PostExcept('JMeter does not have the stat %s to graph' % self.stat)
+                    else:
+                        raise PostExcept('Unsupport test type %s for graphing' % test)
+                    if test == 'fio':
+                        traces.append(go.Scatter(x=x['data'],
+                                                 y=y['data'],
+                                                 mode='lines+markers',
+                                                 name='%s-%s' % ('read', '-'.join(server.split('-')[3:]))))
+                        traces.append(go.Scatter(x=x2['data'],
+                                                 y=y2['data'],
+                                                 mode='lines+markers',
+                                                 name='%s-%s' % ('write', '-'.join(server.split('-')[3:]))))
+                    else:
+                        traces.append(go.Scatter(x=x['data'],
+                                                 y=y['data'],
+                                                 mode='lines+markers',
+                                                 name='-'.join(server.split('-')[3:])))
+                layout = go.Layout(title='CloudPunch %s %s' % (test, self.stat),
                                    xaxis={'title': x['label']},
                                    yaxis={'title': y['label']})
                 fig = go.Figure(data=traces, layout=layout)

@@ -67,17 +67,30 @@ class CloudPunchTest(Thread):
             logging.info('Running the jmeter command: %s', jmeter_command)
             popen = subprocess.Popen(jmeter_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
+            total_time = 0
             for line in iter(popen.stdout.readline, b''):
                 line = line.strip()
-                if line.count('=') != 2:
+                if line.count('=') != 2 and not self.config['overtime_results']:
+                    continue
+                if '+' not in line and self.config['overtime_results']:
                     continue
                 line = ' '.join(line.split()).split()
-                self.final_results = {
-                    'requests_per_second': float(line[6][:-2]),
-                    'latency_msec': int(line[8]),
-                    'error_count': int(line[14]),
-                    'error_percent': float(filter(lambda x: x not in '()%', line[15]))
-                }
+                if self.config['overtime_results']:
+                    total_time += int(line[4].split(':')[-1])
+                    self.final_results.append({
+                        'time': total_time,
+                        'requests_per_second': float(line[6][:-2]),
+                        'latency_msec': int(line[8]),
+                        'error_count': int(line[14]),
+                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                    })
+                else:
+                    self.final_results = {
+                        'requests_per_second': float(line[6][:-2]),
+                        'latency_msec': int(line[8]),
+                        'error_count': int(line[14]),
+                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                    }
 
             popen.stdout.close()
 

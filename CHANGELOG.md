@@ -4,6 +4,7 @@ A list of notable changes will be documented here
 ## 1.5.0 - 2017-xx-xx
 ### Added
 - New configuration options in the jmeter test. You can now specify `port` and `path` when connecting to a server
+- The jmeter test now supports `overtime_results`
 - New `graph` format option in cloudpunch post. This option uses plotly to graph results into an HTML file
 
 ### Changed

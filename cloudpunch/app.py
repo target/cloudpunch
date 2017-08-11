@@ -183,10 +183,22 @@ def cp_app():
                              dest='output_file',
                              default=None,
                              help='file to save processed results to (default: stdout)')
+    post_parser.add_argument('-s',
+                             '--stat',
+                             action='store',
+                             dest='stat',
+                             default=None,
+                             help='stat from test to graph (graph format only)')
+    post_parser.add_argument('-t',
+                             '--test',
+                             action='store',
+                             dest='test',
+                             default=None,
+                             help='fio test to graph (fio test and graph format only)')
     post_parser.add_argument('--raw',
                              action='store_true',
                              dest='raw_mode',
-                             help='converted results are raw numbers')
+                             help='converted results are raw numbers (all except graph format)')
     post_parser.add_argument('--open',
                              action='store_true',
                              dest='open_graph',
@@ -301,6 +313,8 @@ def cp_app():
         post_process = post.Post(filename=args.results_file,
                                  format_type=args.format,
                                  output_file=args.output_file,
+                                 stat=args.stat,
+                                 fiotest=args.test,
                                  raw_mode=args.raw_mode,
                                  open_graph=args.open_graph)
         post_process.run()

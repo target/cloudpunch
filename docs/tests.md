@@ -6,12 +6,6 @@ Tests that live under `cloudpunch/slave` will be documented here.
 
 FIO is short for Flexible IO, a versatile IO workload generator. FIO is widely used as an industry standard benchmark, stress testing tool, and for IO verification purposes. See [here](http://linux.die.net/man/1/fio) for official FIO documentation
 
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
-
 ### Configuration
 
 #### Test File
@@ -128,12 +122,6 @@ fio:
 
 iPerf3 is used for network throughput testing. See [here](https://iperf.fr/iperf-doc.php) for the official iPerf3 documentation.
 
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
-
 #### Server vs Client
 
 iPerf3 will be run as the role of the instance. If the instance is a server role, it will be run as a server. If the instance is a client role, it will be run as a client.
@@ -219,12 +207,6 @@ iperf:
 
 Ping is used solely for latency testing. It often is used with iPerf3 to see how latency is affected by high network throughput.
 
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
-
 ### Configuration
 
 Ping can be ran with `server_client_mode` enabled or disabled. If enabled ping will use the corresponding instance as its target. If disabled, the `target` key will be used
@@ -277,13 +259,6 @@ Latency is in msec
 ## Stress-ng
 
 Stress-ng is used for CPU usage tests. See [here](http://kernel.ubuntu.com/~cking/stress-ng/) for official documentation
-
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
-
 
 ### Configuration
 
@@ -366,12 +341,6 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
 
 Apache JMeter is a java-based application used to test web server load. See [here](https://jmeter.apache.org/) for official JMeter documentation
 
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | No        |
-
 ### Configuration
 
 All configuration lives under the `jmeter` key inside the configuration file
@@ -423,6 +392,29 @@ jmeter:
 ```
 
 ### Results
+
+##### Overtime Results
+
+```yaml
+- hostname: cloudpunch-8153315-c-r2-n2-c2
+  results:
+    jmeter:
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1286.5
+      time: 20
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1405.5
+      time: 50
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1402.5
+      time: 80
+```
 
 ##### Summary Results
 
