@@ -115,8 +115,20 @@ fio:
           iops: 36.88666666666667
           bandwidth_bytes: 144000
           total_bytes: 1620000
-
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name | Results Name    | Graph Label                               |
+| --------- | --------------- | ----------------------------------------- |
+| iops      | iops            | Input/Output Operations per Second (IOPS) |
+| latency   | latency_msec    | Latency (msec)                            |
+| bandwidth | bandwidth_bytes | Bandwidth (Bps)                           |
+| bytes     | total_bytes     | Total Bytes                               |
 
 ## iPerf3
 
@@ -203,6 +215,17 @@ iperf:
       retransmits: 0
 ```
 
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| bps         | bps          | Throughput (Gbps) |
+| retransmits | retransmits  | Retransmits       |
+
 ## Ping
 
 Ping is used solely for latency testing. It often is used with iPerf3 to see how latency is affected by high network throughput.
@@ -255,6 +278,16 @@ Latency is in msec
     ping:
       latency: 0.2032
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| latency     | latency      | Latency (msec)    |
 
 ## Stress-ng
 
@@ -337,6 +370,17 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
       timeout: 5
 ```
 
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| load        | load         | CPU Load          |
+| cpu         | cpu          | CPU Count         |
+
 ## JMeter
 
 Apache JMeter is a java-based application used to test web server load. See [here](https://jmeter.apache.org/) for official JMeter documentation
@@ -387,7 +431,7 @@ jmeter:
   threads: 10
   ramp-up: 0
   duration: 60
-  port: 8000
+  port: 80
   path: /api/system/health
 ```
 
@@ -427,3 +471,16 @@ jmeter:
       latency_msec: 15
       requests-per-second: 1937.7
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post when using `-f graph`
+
+| Stat Name   | Results Name        | Graph Label         |
+| ----------- | ------------------- | ------------------- |
+| requests    | requests_per_second | Requests per Second |
+| ecount      | error_count         | Error Count         |
+| epercent    | error_percent       | Error Percent       |
+| latency     | latency_msec        | Latency (msec)      |

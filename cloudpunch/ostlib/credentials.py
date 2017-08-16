@@ -65,7 +65,7 @@ class Credentials(object):
                 if name in self.creds:
                     found = True
             if not found:
-                raise CredError('Project information is missing from OpenRC file and environment and admin mode is disabled')
+                raise CredError('Project information is missing from OpenRC file and environment')
 
         # Warn if no region_name
         if 'region_name' not in self.creds:
@@ -82,13 +82,12 @@ class Credentials(object):
             if not interactive:
                 raise CredError('OS_PASSWORD and OS_TOKEN missing from OpenRC file and environment')
             # Ask user for password / token if we don't have one
-            password = getpass.getpass('Enter your OpenStack %s for %s on region %s: ' % (auth_type,
-                                                                                          self.creds['auth_url'],
-                                                                                          self.creds['region_name']))
+            password = ''
             while len(password) == 0:
-                password = getpass.getpass('Enter your OpenStack %s for %s on region %s: ' % (auth_type,
-                                                                                              self.creds['auth_url'],
-                                                                                              self.creds['region_name']))
+                ask_str = 'Enter your OpenStack %s for %s on region %s: ' % (auth_type,
+                                                                             self.creds['auth_url'],
+                                                                             self.creds['region_name'])
+                password = getpass.getpass(ask_str)
             self.creds[auth_type] = password
 
         # Set API version to 3 if needed

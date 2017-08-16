@@ -10,16 +10,65 @@ from tabulate import tabulate
 SUPPORTED_TESTS = ['fio', 'iperf', 'stress', 'ping', 'jmeter']
 SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv', 'graph']
 
+GRAPH_LABELS = {
+    'time': 'Seconds',
+    'iops': 'Input/Output Operations per Second (IOPS)',
+    'latency': 'Latency (msec)',
+    'bandwidth': 'Bandwidth (Bps)',
+    'bytes': 'Total Bytes',
+    'bps': 'Throughput (Gbps)',
+    'retransmits': 'Retransmits',
+    'load': 'CPU Load',
+    'cpu': 'CPU Count',
+    'requests': 'Requests per Second',
+    'ecount': 'Error Count',
+    'epercent': 'Error Percent'
+}
+GRAPH_MAPPINGS = {
+    'fio': {
+        'iops': 'iops',
+        'latency': 'latency_msec',
+        'bandwidth': 'bandwidth_bytes',
+        'bytes': 'total_bytes'
+    },
+    'iperf': {
+        'bps': 'bps',
+        'retransmits': 'retransmits'
+    },
+    'stress': {
+        'load': 'load',
+        'cpu': 'cpu'
+    },
+    'ping': {
+        'latency': 'latency'
+    },
+    'jmeter': {
+        'requests': 'requests_per_second',
+        'ecount': 'error_count',
+        'epercent': 'error_percent',
+        'latency': 'latency_msec'
+    }
+}
+GRAPH_DEFAULTS = {
+    'fio': 'iops',
+    'iperf': 'bps',
+    'stress': 'load',
+    'ping': 'latency',
+    'jmeter': 'requests'
+}
+
 
 class Post(object):
 
-    def __init__(self, filename, format_type='yaml', output_file=None,
-                 stat=None, fiotest=None, raw_mode=False, open_graph=False):
+    def __init__(self, filename, format_type='yaml', output_file=None, stat=None, test=None,
+                 fiojob=None, summary=False, raw_mode=False, open_graph=False):
         self.filename = filename
         self.format_type = format_type
         self.output_file = output_file
         self.stat = stat
-        self.fiotest = fiotest
+        self.test = test
+        self.fiojob = fiojob
+        self.summary = summary
         self.raw_mode = raw_mode
         self.open_graph = open_graph
         self.overtime = False
@@ -45,6 +94,11 @@ class Post(object):
         # List of tests inside the results file
         tests = data[0]['results'].keys()
 
+        # Check if supplied test is in results
+        if self.test and self.test not in tests:
+            raise PostExcept('Results does not contain test %s, it contains: %s' % (self.test,
+                                                                                    ', '.join(tests)))
+
         # Check if this data is a summary or over time
         for test in tests:
             if test == 'fio':
@@ -59,6 +113,10 @@ class Post(object):
         # Process results into a list
         results = self.create_list(tests, data)
 
+        if self.overtime and self.summary:
+            self.overtime = False
+            results = self.summarize_results(results)
+
         # Process the list for total, mean, median, mode, range
         if not self.overtime:
             results = self.process_results(results)
@@ -66,6 +124,7 @@ class Post(object):
         # Format the results
         results = self.format_results(results)
 
+        # format_results handles the rest for graph
         if self.format_type == 'graph':
             return
         # Print out to a file if output_file is set
@@ -141,6 +200,37 @@ class Post(object):
             raise PostExcept('Server %s has an invalid format for test %s' % (server['hostname'], test))
         return sequence
 
+    def summarize_results(self, data):
+        results = {}
+        for test in data:
+            if test not in results:
+                results[test] = {}
+            for server in data[test]:
+                if test == 'fio':
+                    for jobname in data[test][server]:
+                        if jobname not in results[test]:
+                            results[test][jobname] = {}
+                        for io_type in data[test][server][jobname]:
+                            if io_type not in results[test][jobname]:
+                                results[test][jobname][io_type] = {}
+                            for stat in data[test][server][jobname][io_type]:
+                                if stat == 'time':
+                                    continue
+                                if stat not in results[test][jobname][io_type]:
+                                    results[test][jobname][io_type][stat] = []
+                                current_data = data[test][server][jobname][io_type][stat]
+                                summarized = sum(current_data) / len(current_data)
+                                results[test][jobname][io_type][stat].append(summarized)
+                else:
+                    for stat in data[test][server]:
+                        if stat == 'time':
+                            continue
+                        if stat not in results[test]:
+                            results[test][stat] = []
+                        summarized = sum(data[test][server][stat]) / len(data[test][server][stat])
+                        results[test][stat].append(summarized)
+        return results
+
     def process_results(self, data):
         results = {}
         for label in ['total', 'mean', 'median', 'mode', 'minrange', 'maxrange']:
@@ -164,7 +254,7 @@ class Post(object):
                             results['mode'][test][jobname][io_type][stat] = max(set(stat_data), key=stat_data.count)
                             results['minrange'][test][jobname][io_type][stat] = stat_data[0]
                             results['maxrange'][test][jobname][io_type][stat] = stat_data[len(stat_data) - 1]
-                if not self.raw_mode:
+                if not self.raw_mode and self.format_type != 'graph':
                     for label in results:
                         results[label][test] = self.convert(test, results[label][test])
             else:
@@ -176,7 +266,7 @@ class Post(object):
                     results['mode'][test][stat] = max(set(stat_data), key=stat_data.count)
                     results['minrange'][test][stat] = stat_data[0]
                     results['maxrange'][test][stat] = stat_data[len(stat_data) - 1]
-                if not self.raw_mode:
+                if not self.raw_mode and self.format_type != 'graph':
                     for label in results:
                         results[label][test] = self.convert(test, results[label][test])
 
@@ -244,6 +334,8 @@ class Post(object):
         elif self.format_type == 'json':
             return json.dumps(results)
         elif self.format_type in ['table', 'csv']:
+            if self.overtime:
+                raise PostExcept('Table and CSV formats do not support over time results')
             tables = []
             tests = results['mean'].keys()
             for test in tests:
@@ -317,134 +409,102 @@ class Post(object):
                     final_table += '\n'
             return final_table
         elif self.format_type == 'graph':
+            if not self.overtime:
+                raise PostExcept('Graph format does not support summary results')
             for test in results:
+                if self.test and test != self.test:
+                    continue
                 traces = []
                 for server in results[test]:
-                    x = {'data': [], 'label': ''}
-                    y = {'data': [], 'label': ''}
+                    x = []
+                    y = []
                     if test == 'fio':
-                        x2 = {'data': [], 'label': ''}
-                        y2 = {'data': [], 'label': ''}
+                        x2 = []
+                        y2 = []
                         fio_tests = results[test][server].keys()
                         if len(fio_tests) == 1:
                             process_test = fio_tests[0]
-                            if self.fiotest and process_test != self.fiotest:
-                                logging.warning('Results has only one fio test %s, ignoring given test %s',
-                                                process_test, self.fiotest)
-                        elif self.fiotest:
-                            if self.fiotest not in fio_tests:
-                                raise PostExcept('Results do not have fio test %s' % self.fiotest)
-                            process_test = self.fiotest
+                            if self.fiojob and process_test != self.fiojob:
+                                logging.warning('Results has only one fio job %s, ignoring given test %s',
+                                                process_test, self.fiojob)
+                        elif self.fiojob:
+                            if self.fiojob not in fio_tests:
+                                valid_options = ', '.join(fio_tests)
+                                raise PostExcept('Results do not have fio job %s, must be: %s' % (self.fiojob,
+                                                                                                  valid_options))
+                            process_test = self.fiojob
                         else:
-                            raise PostExcept('Results have multiple fio tests, supply one with -t')
+                            valid_options = ', '.join(fio_tests)
+                            raise PostExcept('Results have multiple fio jobs (%s), supply one with -t' % valid_options)
                         for io_type in ['read', 'write']:
+                            # process x axis
                             for time in results[test][server][process_test][io_type]['time']:
                                 current_time = time - results[test][server][process_test][io_type]['time'][0] + 1
                                 if io_type == 'read':
-                                    x['data'].append(current_time)
+                                    x.append(current_time)
                                 else:
-                                    x2['data'].append(current_time)
-                            x['label'] = 'Seconds'
-                            if self.stat == 'iops' or not self.stat:
-                                self.stat = 'iops'
-                                stat_label = 'iops'
-                                y['label'] = 'Input/Output Operations per Second (IOPS)'
-                            elif self.stat == 'latency':
-                                stat_label = 'latency_msec'
-                                y['label'] = 'Latency (msec)'
-                            elif self.stat == 'bandwidth':
-                                stat_label = 'bandwidth_bytes'
-                                y['label'] = 'Bandwidth (Bps)'
-                            elif self.stat == 'bytes':
-                                stat_label = 'total_bytes'
-                                y['label'] = 'Total Bytes'
-                            else:
-                                raise PostExcept('FIO does not have the stat %s to graph' % self.stat)
-                            current_seq = results[test][server][process_test][io_type][stat_label]
+                                    x2.append(current_time)
+                            # validate test stat
+                            if not self.stat:
+                                self.stat = GRAPH_DEFAULTS[test]
+                            if self.stat not in GRAPH_MAPPINGS[test]:
+                                valid_options = ', '.join(GRAPH_MAPPINGS[test].keys())
+                                raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
+                                                                                                         self.stat,
+                                                                                                         valid_options))
+                            # process y axis
+                            current_seq = results[test][server][process_test][io_type][GRAPH_MAPPINGS[test][self.stat]]
                             if io_type == 'read':
-                                y['data'] = current_seq
+                                y = current_seq
                             else:
-                                y2['data'] = current_seq
-                    elif test == 'iperf':
-                        for time in results[test][server]['time']:
-                            x['data'].append(time - results[test][server]['time'][0] + 1)
-                        x['label'] = 'Seconds'
-                        if self.stat == 'bps' or not self.stat:
-                            self.stat = 'bps'
-                            for bit in results[test][server]['bps']:
-                                y['data'].append(bit / 1000000000)
-                            y['label'] = 'Throughput (Gbps)'
-                        elif self.stat == 'retransmits':
-                            y['data'] = results[test][server]['retransmits']
-                            y['label'] = 'Retransmits'
-                        else:
-                            raise PostExcept('iPerf does not have the stat %s to graph' % self.stat)
-                    elif test == 'stress':
-                        current_time = 0
-                        for time in results[test][server]['timeout']:
-                            x['data'].append(current_time)
-                            current_time += time
-                            x['data'].append(current_time)
-                        x['label'] = 'Seconds'
-                        if self.stat == 'load' or not self.stat:
-                            self.stat = 'load'
-                            for load in results[test][server]['load']:
-                                y['data'].append(load)
-                                y['data'].append(load)
-                            y['label'] = 'CPU Load'
-                        elif self.stat == 'cpu':
-                            for cpu in results[test][server]['cpu']:
-                                y['data'].append(cpu)
-                                y['data'].append(cpu)
-                            y['label'] = 'CPU Count'
-                        else:
-                            raise PostExcept('Stress does not have the stat %s to graph' % self.stat)
-                    elif test == 'ping':
-                        if self.stat and self.stat != 'latency':
-                            logging.info('Ping does not have more than 1 stat to graph, ignoring stat')
-                        self.stat = 'latency'
-                        for time in results[test][server]['time']:
-                            x['data'].append(round(time - results[test][server]['time'][0] + 1))
-                        x['label'] = 'Seconds'
-                        y['data'] = results[test][server]['latency']
-                        y['label'] = 'Latency (msec)'
-                    elif test == 'jmeter':
-                        x['data'] = results[test][server]['time']
-                        x['label'] = 'Seconds'
-                        if self.stat == 'requests' or not self.stat:
-                            self.stat = 'requests'
-                            y['data'] = results[test][server]['requests_per_second']
-                            y['label'] = 'Requests per Second'
-                        elif self.stat == 'ecount':
-                            y['data'] = results[test][server]['error_count']
-                            y['label'] = 'Error Count'
-                        elif self.stat == 'epercent':
-                            y['data'] = results[test][server]['error_percent']
-                            y['label'] = 'Error Percent'
-                        elif self.stat == 'latency':
-                            y['data'] = results[test][server]['latency_msec']
-                            y['label'] = 'Latency (msec)'
-                        else:
-                            raise PostExcept('JMeter does not have the stat %s to graph' % self.stat)
+                                y2 = current_seq
                     else:
-                        raise PostExcept('Unsupport test type %s for graphing' % test)
+                        # process x axis
+                        if test == 'stress':
+                            current_time = 0
+                            for time in results[test][server]['timeout']:
+                                x.append(current_time)
+                                current_time += time
+                                x.append(current_time)
+                        elif test in ['ping', 'iperf']:
+                            for time in results[test][server]['time']:
+                                x.append(round(time - results[test][server]['time'][0] + 1))
+                        elif test == 'jmeter':
+                            x = results[test][server]['time']
+                        # validate test stat
+                        if not self.stat:
+                            self.stat = GRAPH_DEFAULTS[test]
+                        if self.stat not in GRAPH_MAPPINGS[test]:
+                            valid_options = ', '.join(GRAPH_MAPPINGS[test].keys())
+                            raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
+                                                                                                     self.stat,
+                                                                                                     valid_options))
+                        # process y axis
+                        if test == 'stress':
+                            for value in results[test][server][self.stat]:
+                                y += [value] * 2
+                        elif test == 'iperf' and self.stat == 'bps':
+                            for bit in results[test][server][self.stat]:
+                                y.append(bit / 1000000000)
+                        else:
+                            y = results[test][server][GRAPH_MAPPINGS[test][self.stat]]
                     if test == 'fio':
-                        traces.append(go.Scatter(x=x['data'],
-                                                 y=y['data'],
+                        traces.append(go.Scatter(x=x,
+                                                 y=y,
                                                  mode='lines+markers',
                                                  name='%s-%s' % ('read', '-'.join(server.split('-')[3:]))))
-                        traces.append(go.Scatter(x=x2['data'],
-                                                 y=y2['data'],
+                        traces.append(go.Scatter(x=x2,
+                                                 y=y2,
                                                  mode='lines+markers',
                                                  name='%s-%s' % ('write', '-'.join(server.split('-')[3:]))))
                     else:
-                        traces.append(go.Scatter(x=x['data'],
-                                                 y=y['data'],
+                        traces.append(go.Scatter(x=x,
+                                                 y=y,
                                                  mode='lines+markers',
                                                  name='-'.join(server.split('-')[3:])))
                 layout = go.Layout(title='CloudPunch %s %s' % (test, self.stat),
-                                   xaxis={'title': x['label']},
-                                   yaxis={'title': y['label']})
+                                   xaxis={'title': GRAPH_LABELS['time']},
+                                   yaxis={'title': GRAPH_LABELS[self.stat]})
                 fig = go.Figure(data=traces, layout=layout)
                 filename = self.output_file
                 if not self.output_file:

@@ -5,12 +5,13 @@ A list of notable changes will be documented here
 ### Added
 - New configuration options in the jmeter test. You can now specify `port` and `path` when connecting to a server
 - The jmeter test now supports `overtime_results`
+- stress-ng test now supports summary results
 - New `graph` format option in cloudpunch post. This option uses plotly to graph results into an HTML file
+- New `--summary` option in cloudpunch post. This option will convert over time results to summary results
 
 ### Changed
 - Fixed incorrect overtime results in the FIO test
-- stress-ng test now supports summary results
-- ping test no longer includes target
+- ping test no longer includes target and duration
 
 ## 1.4.0 - 2017-06-14
 ### Added

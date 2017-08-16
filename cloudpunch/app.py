@@ -176,7 +176,7 @@ def cp_app():
                              action='store',
                              dest='format',
                              default='yaml',
-                             help='format to convert results to (json, yaml, table, csv, graph)')
+                             help='convert results to format (json, yaml, table, csv, graph)')
     post_parser.add_argument('-o',
                              '--output',
                              action='store',
@@ -194,7 +194,17 @@ def cp_app():
                              action='store',
                              dest='test',
                              default=None,
-                             help='fio test to graph (fio test and graph format only)')
+                             help='test to graph (graph format only)')
+    post_parser.add_argument('-j',
+                             '--job',
+                             action='store',
+                             dest='fiojob',
+                             default=None,
+                             help='fio job to graph (fio test and graph format only)')
+    post_parser.add_argument('--summary',
+                             action='store_true',
+                             dest='summary',
+                             help='convert over time results to summary results')
     post_parser.add_argument('--raw',
                              action='store_true',
                              dest='raw_mode',
@@ -314,7 +324,9 @@ def cp_app():
                                  format_type=args.format,
                                  output_file=args.output_file,
                                  stat=args.stat,
-                                 fiotest=args.test,
+                                 test=args.test,
+                                 fiojob=args.fiojob,
+                                 summary=args.summary,
                                  raw_mode=args.raw_mode,
                                  open_graph=args.open_graph)
         post_process.run()

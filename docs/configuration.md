@@ -84,7 +84,17 @@ The following options are given on the command-line when using cloudpunch post
 
 - `o, --output` - Specify an output file to save processed results to
 
+- `-s, --stat` - Stat from test to graph (graph format only)
+
+- `-t, --test` - Name of the CloudPunch test to graph (graph format only). By default all tests will be graphed
+
+- `-j, --job` - Name of the FIO job to graph (FIO test and graph format only)
+
+- `--summary` - Convert over time results to summary results
+
 - `--raw` - Do not convert numbers to human readable format. By default 3000 would be converted to 3 K
+
+- `--open` - Open the generated HTML graph file after creation (graph format only)
 
 ## Master Command-line Options
 

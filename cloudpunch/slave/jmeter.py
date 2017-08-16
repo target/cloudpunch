@@ -26,7 +26,7 @@ class CloudPunchTest(Thread):
                     'threads': 10,
                     'ramp-up': 0,
                     'duration': 60,
-                    'port': 8000,
+                    'port': 80,
                     'path': '/api/system/health',
                     'gunicorn': {
                         'workers': 5,
@@ -56,9 +56,12 @@ class CloudPunchTest(Thread):
 
         # Start jmeter
         elif self.config['role'] == 'client' or not self.config['server_client_mode']:
-            if not self.config['server_client_mode'] and 'target' not in self.config['jmeter']:
+            if self.config['server_client_mode']:
+                server_ip = self.config['match_ip']
+            elif 'target' in self.config['jmeter']:
+                server_ip = self.config['jmeter']['target']
+            else:
                 raise ConfigError('Missing target IP address in jmeter configuration')
-            server_ip = self.config['match_ip'] if self.config['server_client_mode'] else self.config['jmeter']['target']
             self.write_jmeter_config(self.config['jmeter'], server_ip)
 
             # Wait 5 seconds for the server to start

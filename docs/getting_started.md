@@ -15,7 +15,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Local Machine
     - Python 2.7
-    - PIP: tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient
+    - PIP: tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient, python-glanceclient, plotly
     - Packages: none
 
 
@@ -27,7 +27,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Slave (OpenStack image)
     - Python 2.7
-    - PIP: none
+    - PIP: xmltodict, gunicorn
     - Packages: none
 
 The OpenStack image used should contain all required software for the best staging time. If the image is missing software, the `shared_userdata` and `userdata` keys for respective roles will have to contain the commands required to install the missing software. The CloudPunch software must be contained under `/opt/cloudpunch`
@@ -45,9 +45,13 @@ The OpenStack image used should contain all required software for the best stagi
     - python-novaclient - handles interaction with OpenStack nova
     - python-neutronclient - handles interaction with OpenStack neutron
     - python-cinderclient - handles interaction with OpenStack cinder
+    - python-glanceclient - handles interaction with OpenStack glance
+    - plotly - graphs over time results
     - flask - runs master server's API
     - redis - handles interaction with local redis server on the master server
     - requests - handles API calls to master server
+    - xmltodict - modifies the jmeter XML file
+    - gunicorn - runs as a web server for jmeter tests
 
 
 - Packages
