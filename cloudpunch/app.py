@@ -352,8 +352,8 @@ def main():
         logging.error(e.message)
     except KeyboardInterrupt:
         pass
-    # except Exception as e:
-    #     logging.error('%s: %s', type(e).__name__, e.message)
+    except Exception as e:
+        logging.error('%s: %s', type(e).__name__, e.message)
     finally:
         logging.info('Terminating CloudPunch')
 
