@@ -1,7 +1,7 @@
 # Change Log
 A list of notable changes will be documented here
 
-## 1.5.0 - 2017-xx-xx
+## 1.5.0 - 2017-08-16
 ### Added
 - New configuration options in the jmeter test. You can now specify `port` and `path` when connecting to a server
 - The jmeter test now supports `overtime_results`
