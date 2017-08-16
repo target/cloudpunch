@@ -24,7 +24,7 @@ It is recommended to use pep8 as the linter. Pep8 can be installed using pip:
 pip install pep8
 ```
 
-The maximum line length allowed is 125. Create the configuration required to change this:
+The maximum line length allowed is 120. Create the configuration required to change this:
 
 ```
 mkdir ~/.config
@@ -35,7 +35,7 @@ Save the file as the following:
 
 ```
 [pep8]
-max-line-length = 125
+max-line-length = 120
 ```
 
 Go into the CloudPunch main directory and run pep8:

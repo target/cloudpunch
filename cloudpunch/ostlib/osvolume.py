@@ -139,7 +139,8 @@ class Snapshot(BaseVolume):
         snapshot = self.cinder.volume_snapshots.get(self.get_id())
         # Check if the snapshot became available
         if snapshot.status != 'available':
-            raise OSVolumeError('Volume snapshot %s with ID %s took too long to become available' % (name, self.get_id()))
+            raise OSVolumeError('Volume snapshot %s with ID %s took too long to become available' % (name,
+                                                                                                     self.get_id()))
         logging.debug('Volume snapshot %s with ID %s is now available', name, self.get_id())
 
     def delete(self, snapshot_id=None, force=False):

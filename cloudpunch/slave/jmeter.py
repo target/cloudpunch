@@ -26,6 +26,8 @@ class CloudPunchTest(Thread):
                     'threads': 10,
                     'ramp-up': 0,
                     'duration': 60,
+                    'port': 80,
+                    'path': '/api/system/health',
                     'gunicorn': {
                         'workers': 5,
                         'threads': 4
@@ -54,9 +56,12 @@ class CloudPunchTest(Thread):
 
         # Start jmeter
         elif self.config['role'] == 'client' or not self.config['server_client_mode']:
-            if not self.config['server_client_mode'] and 'target' not in self.config['jmeter']:
+            if self.config['server_client_mode']:
+                server_ip = self.config['match_ip']
+            elif 'target' in self.config['jmeter']:
+                server_ip = self.config['jmeter']['target']
+            else:
                 raise ConfigError('Missing target IP address in jmeter configuration')
-            server_ip = self.config['match_ip'] if self.config['server_client_mode'] else self.config['jmeter']['target']
             self.write_jmeter_config(self.config['jmeter'], server_ip)
 
             # Wait 5 seconds for the server to start
@@ -65,17 +70,30 @@ class CloudPunchTest(Thread):
             logging.info('Running the jmeter command: %s', jmeter_command)
             popen = subprocess.Popen(jmeter_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
+            total_time = 0
             for line in iter(popen.stdout.readline, b''):
                 line = line.strip()
-                if line.count('=') != 2:
+                if line.count('=') != 2 and not self.config['overtime_results']:
+                    continue
+                if '+' not in line and self.config['overtime_results']:
                     continue
                 line = ' '.join(line.split()).split()
-                self.final_results = {
-                    'requests_per_second': float(line[6][:-2]),
-                    'latency_msec': int(line[8]),
-                    'error_count': int(line[14]),
-                    'error_percent': float(filter(lambda x: x not in '()%', line[15]))
-                }
+                if self.config['overtime_results']:
+                    total_time += int(line[4].split(':')[-1])
+                    self.final_results.append({
+                        'time': total_time,
+                        'requests_per_second': float(line[6][:-2]),
+                        'latency_msec': int(line[8]),
+                        'error_count': int(line[14]),
+                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                    })
+                else:
+                    self.final_results = {
+                        'requests_per_second': float(line[6][:-2]),
+                        'latency_msec': int(line[8]),
+                        'error_count': int(line[14]),
+                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                    }
 
             popen.stdout.close()
 
@@ -96,15 +114,16 @@ class CloudPunchTest(Thread):
 
         # Change thread number
         xml_short['ThreadGroup']['stringProp'][1]['#text'] = str(jconfig['threads'])
-
         # Change ramp up time
         xml_short['ThreadGroup']['stringProp'][2]['#text'] = str(jconfig['ramp-up'])
-
         # Change duration
         xml_short['ThreadGroup']['stringProp'][3]['#text'] = str(jconfig['duration'])
-
         # Change target
         xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][0]['#text'] = target
+        # Change port
+        xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][1]['#text'] = str(jconfig['port'])
+        # Change path
+        xml_short['hashTree']['HTTPSamplerProxy']['stringProp'][6]['#text'] = str(jconfig['path'])
 
         with open(NEW_JMETER_FILE, 'w') as f:
             f.write(xmltodict.unparse(parsed_xml).encode('utf-8'))

@@ -83,10 +83,11 @@ class CloudPunchTest(Thread):
                         results[jobname][label]['lat'].append(job[label]['lat']['mean'] / 1000)
                         results[jobname][label]['iops'].append(job[label]['iops'])
                 else:
+                    if jobname not in self.final_results:
+                        for label in ['read', 'write']:
+                            self.final_results[jobname][label] = []
                     for label in ['read', 'write']:
-                        if jobname not in self.final_results:
-                            self.final_results[jobname] = []
-                        self.final_results[jobname].append({
+                        self.final_results[jobname][label].append({
                             'time': data['timestamp'],
                             'total_bytes': job[label]['io_bytes'] * 1000,
                             'bandwidth_bytes': job[label]['bw'] * 1000,

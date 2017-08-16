@@ -64,6 +64,10 @@ The following options are given on the command-line when using cloudpunch cleanu
 
 - `-p, --password` - Provide a password to authenticate to OpenStack. This should only be used when in a non-interactive environment and the environment does not contain the password
 
+- `-n, --dry-run` - Do not delete after searching for resources
+
+- `-a, --names` - Show names and UUIDs of found resources
+
 - `--no-env` - Disables loading authentication information from the environment. Use this to force the OpenRC file over the environment
 
 - `--insecure` - Turn off SSL verification to the OpenStack API's
@@ -80,7 +84,17 @@ The following options are given on the command-line when using cloudpunch post
 
 - `o, --output` - Specify an output file to save processed results to
 
+- `-s, --stat` - Stat from test to graph (graph format only)
+
+- `-t, --test` - Name of the CloudPunch test to graph (graph format only). By default all tests will be graphed
+
+- `-j, --job` - Name of the FIO job to graph (FIO test and graph format only)
+
+- `--summary` - Convert over time results to summary results
+
 - `--raw` - Do not convert numbers to human readable format. By default 3000 would be converted to 3 K
+
+- `--open` - Open the generated HTML graph file after creation (graph format only)
 
 ## Master Command-line Options
 

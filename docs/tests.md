@@ -6,12 +6,6 @@ Tests that live under `cloudpunch/slave` will be documented here.
 
 FIO is short for Flexible IO, a versatile IO workload generator. FIO is widely used as an industry standard benchmark, stress testing tool, and for IO verification purposes. See [here](http://linux.die.net/man/1/fio) for official FIO documentation
 
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
-
 ### Configuration
 
 #### Test File
@@ -80,31 +74,28 @@ fio:
   results:
     fio:
       fiotest:
-        - latency_msec: 0.59629
-          iops: 6518.19
-          bandwidth_bytes: 26059
-          total_bytes: 23636
-          time: 1475079260
-        - latency_msec: 0.6225
-          iops: 6560.09
-          bandwidth_bytes: 26213
-          total_bytes: 23776
-          time: 1475079260
-        - latency_msec: 0
-          iops: 6438.64
-          bandwidth_bytes: 25744
-          total_bytes: 49300
-          time: 1475079261
-        - latency_msec: 0.63661
-          iops: 6430.81
-          bandwidth_bytes: 25708
-          total_bytes: 49232
-          time: 1475079261
-        - latency_msec: 0
-          iops: 6458.09
-          bandwidth_bytes: 25821
-          total_bytes: 75476
-          time: 1475079262
+        read:
+          - latency_msec: 0.59629
+            iops: 6518.19
+            bandwidth_bytes: 26059
+            total_bytes: 23636
+            time: 1475079260
+          - latency_msec: 0.6225
+            iops: 6560.09
+            bandwidth_bytes: 26213
+            total_bytes: 23776
+            time: 1475079260
+        write:
+          - latency_msec: 0.59629
+            iops: 6518.19
+            bandwidth_bytes: 26059
+            total_bytes: 23636
+            time: 1475079260
+          - latency_msec: 0.6225
+            iops: 6560.09
+            bandwidth_bytes: 26213
+            total_bytes: 23776
+            time: 1475079260
 ```
 
 ##### Summary Results
@@ -124,18 +115,24 @@ fio:
           iops: 36.88666666666667
           bandwidth_bytes: 144000
           total_bytes: 1620000
-
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name | Results Name    | Graph Label                               |
+| --------- | --------------- | ----------------------------------------- |
+| iops      | iops            | Input/Output Operations per Second (IOPS) |
+| latency   | latency_msec    | Latency (msec)                            |
+| bandwidth | bandwidth_bytes | Bandwidth (Bps)                           |
+| bytes     | total_bytes     | Total Bytes                               |
 
 ## iPerf3
 
 iPerf3 is used for network throughput testing. See [here](https://iperf.fr/iperf-doc.php) for the official iPerf3 documentation.
-
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
 
 #### Server vs Client
 
@@ -218,15 +215,20 @@ iperf:
       retransmits: 0
 ```
 
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| bps         | bps          | Throughput (Gbps) |
+| retransmits | retransmits  | Retransmits       |
+
 ## Ping
 
 Ping is used solely for latency testing. It often is used with iPerf3 to see how latency is affected by high network throughput.
-
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | Yes       |
 
 ### Configuration
 
@@ -257,19 +259,14 @@ Latency is in msec
   results:
     ping:
       - latency: 0.874
-        target: 10.0.0.6
         time: 1470152735.793147
       - latency: 0.256
-        target: 10.0.0.6
         time: 1470152736.792701
       - latency: 0.23
-        target: 10.0.0.6
         time: 1470152737.793253
       - latency: 0.224
-        target: 10.0.0.6
         time: 1470152738.792618
       - latency: 0.2
-        target: 10.0.0.6
         time: 1470152739.792757
 ```
 
@@ -279,21 +276,22 @@ Latency is in msec
 - hostname: cloudpunch-3803825-master-c1
   results:
     ping:
-      duration: 5
       latency: 0.2032
-      target: 10.0.0.6
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| latency     | latency      | Latency (msec)    |
 
 ## Stress-ng
 
 Stress-ng is used for CPU usage tests. See [here](http://kernel.ubuntu.com/~cking/stress-ng/) for official documentation
-
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | No        |
-
 
 ### Configuration
 
@@ -338,7 +336,7 @@ stress:
 
 Stress-ng results are what random number stress-ng was assigned to run at each iteration
 
-##### Sample Results
+##### Overtime Results
 
 ```yaml
 - hostname: cloudpunch-8547561-c-r1-n1-c8
@@ -361,15 +359,31 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
         timeout: 5
 ```
 
+##### Summary Results
+
+```yaml
+- hostname: cloudpunch-8547561-c-r1-n1-c8
+  results:
+    stress:
+      load: 69
+      cpu: 1
+      timeout: 5
+```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
+
+| Stat Name   | Results Name | Graph Label       |
+| ----------- | ------------ | ----------------- |
+| load        | load         | CPU Load          |
+| cpu         | cpu          | CPU Count         |
+
 ## JMeter
 
 Apache JMeter is a java-based application used to test web server load. See [here](https://jmeter.apache.org/) for official JMeter documentation
-
-### CloudPunch Configuration Support
-
-| Option           | Supported |
-| ---------------- | --------- |
-| overtime_results | No        |
 
 ### Configuration
 
@@ -398,11 +412,17 @@ jmeter:
 
 ##### Client Configuration Key Reference
 
+- `target` - the IP address or hostname to connect to (this is only available without server_client_mode)
+
 - `threads` - the number of threads to start for http requests
 
 - `ramp-up` - the number of seconds for the threads to start
 
 - `duration` - the number of seconds to run the test for
+
+- `port` - the port to connect to
+
+- `path` - the URL path to connect to
 
 ###### Default Client Configuration
 
@@ -411,9 +431,34 @@ jmeter:
   threads: 10
   ramp-up: 0
   duration: 60
+  port: 80
+  path: /api/system/health
 ```
 
 ### Results
+
+##### Overtime Results
+
+```yaml
+- hostname: cloudpunch-8153315-c-r2-n2-c2
+  results:
+    jmeter:
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1286.5
+      time: 20
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1405.5
+      time: 50
+    - error_count: 0
+      error_percent: 0.0
+      latency_msec: 7
+      requests_per_second: 1402.5
+      time: 80
+```
 
 ##### Summary Results
 
@@ -426,3 +471,16 @@ jmeter:
       latency_msec: 15
       requests-per-second: 1937.7
 ```
+
+### Post Processing
+
+##### Graph Stats
+
+The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post when using `-f graph`
+
+| Stat Name   | Results Name        | Graph Label         |
+| ----------- | ------------------- | ------------------- |
+| requests    | requests_per_second | Requests per Second |
+| ecount      | error_count         | Error Count         |
+| epercent    | error_percent       | Error Percent       |
+| latency     | latency_msec        | Latency (msec)      |

@@ -176,17 +176,43 @@ def cp_app():
                              action='store',
                              dest='format',
                              default='yaml',
-                             help='format to convert results to (json, yaml, table, csv)')
+                             help='convert results to format (json, yaml, table, csv, graph)')
     post_parser.add_argument('-o',
                              '--output',
                              action='store',
                              dest='output_file',
                              default=None,
                              help='file to save processed results to (default: stdout)')
+    post_parser.add_argument('-s',
+                             '--stat',
+                             action='store',
+                             dest='stat',
+                             default=None,
+                             help='stat from test to graph (graph format only)')
+    post_parser.add_argument('-t',
+                             '--test',
+                             action='store',
+                             dest='test',
+                             default=None,
+                             help='test to graph (graph format only)')
+    post_parser.add_argument('-j',
+                             '--job',
+                             action='store',
+                             dest='fiojob',
+                             default=None,
+                             help='fio job to graph (fio test and graph format only)')
+    post_parser.add_argument('--summary',
+                             action='store_true',
+                             dest='summary',
+                             help='convert over time results to summary results')
     post_parser.add_argument('--raw',
                              action='store_true',
                              dest='raw_mode',
-                             help='converted results are raw numbers')
+                             help='converted results are raw numbers (all except graph format)')
+    post_parser.add_argument('--open',
+                             action='store_true',
+                             dest='open_graph',
+                             help='open generated graph after creation (graph format only)')
     # Master parser
     master_parser = subparsers.add_parser('master',
                                           help='start the master server')
@@ -297,7 +323,12 @@ def cp_app():
         post_process = post.Post(filename=args.results_file,
                                  format_type=args.format,
                                  output_file=args.output_file,
-                                 raw_mode=args.raw_mode)
+                                 stat=args.stat,
+                                 test=args.test,
+                                 fiojob=args.fiojob,
+                                 summary=args.summary,
+                                 raw_mode=args.raw_mode,
+                                 open_graph=args.open_graph)
         post_process.run()
 
     # Master workload
@@ -321,8 +352,8 @@ def main():
         logging.error(e.message)
     except KeyboardInterrupt:
         pass
-    # except Exception as e:
-    #     logging.error('%s: %s', type(e).__name__, e.message)
+    except Exception as e:
+        logging.error('%s: %s', type(e).__name__, e.message)
     finally:
         logging.info('Terminating CloudPunch')
 

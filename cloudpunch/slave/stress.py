@@ -46,20 +46,48 @@ class CloudPunchTest(Thread):
             timeout = random.randint(self.config['stress']['duration-min'], self.config['stress']['duration-max'])
             load = random.randint(self.config['stress']['load-min'], self.config['stress']['load-max'])
 
+            results = {
+                'cpu': [],
+                'timeout': [],
+                'load': []
+            }
+            # Over time results
+            if self.config['overtime_results']:
+                self.final_results.append({
+                    'cpu': cpu,
+                    'timeout': timeout,
+                    'load': load
+                })
+            # Summary results
+            else:
+                results['cpu'].append(cpu)
+                results['timeout'].append(timeout)
+                results['load'].append(load)
+
             command = 'nice -n %s stress-ng --cpu %s --timeout %ss --cpu-load %s' % (self.config['stress']['nice'],
                                                                                      cpu,
                                                                                      timeout,
                                                                                      load)
             logging.info('Running stress command: %s', command)
-            self.final_results.append({
-                'cpu': cpu,
-                'timeout': timeout,
-                'load': load
-            })
             os.popen(command)
             logging.info('Stress command complete')
             logging.info('Sleeping for %s seconds', self.config['stress']['delay'])
             time.sleep(self.config['stress']['delay'])
+
+        # Send back summary if not over time
+        if not self.config['overtime_results']:
+            try:
+                self.final_results = {
+                    'cpu': sum(results['cpu']) / len(results['cpu']),
+                    'timeout': sum(results['timeout']) / len(results['timeout']),
+                    'load': sum(results['load']) / len(results['load'])
+                }
+            except ZeroDivisionError:
+                self.final_results = {
+                    'cpu': -1,
+                    'timeout': -1,
+                    'load': -1
+                }
 
     def merge_configs(self, default, new):
         for key, value in new.iteritems():

@@ -117,8 +117,8 @@ class Accelerator(object):
             logging.info(e.message)
         except KeyboardInterrupt:
             pass
-        # except Exception as e:
-        #     logging.error('%s: %s', type(e).__name__, e.message)
+        except Exception as e:
+            logging.error('%s: %s', type(e).__name__, e.message)
         finally:
             # Attempts to remove all resources. Any left over will be saved to a file for later removal
             self.cleanup()
