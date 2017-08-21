@@ -335,21 +335,18 @@ The following is a mapping of test results to definition. Use these names with t
 - hostname: cloudpunch-8547561-c-r1-n1-c8
   results:
     stress:
-      - load: 69
-        cores: 1
-        duration: 5
-      - load: 65
-        cores: 1
-        duration: 8
-      - load: 64
-        cores: 1
-        duration: 5
-      - load: 27
-        cores: 1
-        duration: 7
-      - load: 53
-        cores: 2
-        duration: 5
+    - cores: 1
+      load: 81
+      time: 1503346009
+    - cores: 1
+      load: 70
+      time: 1503346025
+    - cores: 2
+      load: 67
+      time: 1503346040
+    - cores: 1
+      load: 63
+      time: 1503346055
 ```
 
 ##### Summary Results
@@ -360,7 +357,6 @@ The following is a mapping of test results to definition. Use these names with t
     stress:
       load: 69
       cores: 1
-      duration: 5
 ```
 
 ## JMeter

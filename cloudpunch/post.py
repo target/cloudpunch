@@ -276,7 +276,6 @@ class Post(object):
         elif test == 'stress':
             converted = {
                 'cores': round(data['cores'], 2),
-                'duration': round(data['duration'], 2),
                 'load': round(data['load'], 2)
             }
         elif test == 'ping':
@@ -413,15 +412,8 @@ class Post(object):
                                 y2 = current_seq
                     else:
                         # process x axis
-                        if test == 'stress':
-                            current_time = 0
-                            for time in results[test][server]['duration']:
-                                x.append(current_time)
-                                current_time += time
-                                x.append(current_time)
-                        else:
-                            for time in results[test][server]['time']:
-                                x.append(datetime.datetime.fromtimestamp(time))
+                        for time in results[test][server]['time']:
+                            x.append(datetime.datetime.fromtimestamp(time))
                         # validate test stat
                         if not self.stat:
                             self.stat = GRAPH_DEFAULTS[test]
