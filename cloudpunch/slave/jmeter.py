@@ -24,7 +24,7 @@ class CloudPunchTest(Thread):
             default_config = {
                 'jmeter': {
                     'threads': 10,
-                    'ramp-up': 0,
+                    'ramp_up': 0,
                     'duration': 60,
                     'port': 80,
                     'path': '/api/system/health',
@@ -70,29 +70,28 @@ class CloudPunchTest(Thread):
             logging.info('Running the jmeter command: %s', jmeter_command)
             popen = subprocess.Popen(jmeter_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
-            total_time = 0
             for line in iter(popen.stdout.readline, b''):
                 line = line.strip()
+                now = int(time.time())
                 if line.count('=') != 2 and not self.config['overtime_results']:
                     continue
                 if '+' not in line and self.config['overtime_results']:
                     continue
                 line = ' '.join(line.split()).split()
                 if self.config['overtime_results']:
-                    total_time += int(line[4].split(':')[-1])
                     self.final_results.append({
-                        'time': total_time,
-                        'requests_per_second': float(line[6][:-2]),
-                        'latency_msec': int(line[8]),
-                        'error_count': int(line[14]),
-                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                        'time': now,
+                        'rps': float(line[6][:-2]),
+                        'latency': int(line[8]),
+                        'ecount': int(line[14]),
+                        'epercent': float(filter(lambda x: x not in '()%', line[15]))
                     })
                 else:
                     self.final_results = {
-                        'requests_per_second': float(line[6][:-2]),
-                        'latency_msec': int(line[8]),
-                        'error_count': int(line[14]),
-                        'error_percent': float(filter(lambda x: x not in '()%', line[15]))
+                        'rps': float(line[6][:-2]),
+                        'latency': int(line[8]),
+                        'ecount': int(line[14]),
+                        'epercent': float(filter(lambda x: x not in '()%', line[15]))
                     }
 
             popen.stdout.close()
@@ -115,7 +114,7 @@ class CloudPunchTest(Thread):
         # Change thread number
         xml_short['ThreadGroup']['stringProp'][1]['#text'] = str(jconfig['threads'])
         # Change ramp up time
-        xml_short['ThreadGroup']['stringProp'][2]['#text'] = str(jconfig['ramp-up'])
+        xml_short['ThreadGroup']['stringProp'][2]['#text'] = str(jconfig['ramp_up'])
         # Change duration
         xml_short['ThreadGroup']['stringProp'][3]['#text'] = str(jconfig['duration'])
         # Change target

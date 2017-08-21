@@ -1,6 +1,17 @@
 # Change Log
 A list of notable changes will be documented here
 
+## 2.0.0 - 2017-xx-xx
+### Added
+- Take over existing resources
+- Add open source metrics
+- Add testing for swift
+
+### Changed
+- All official tests now have normalized settings and results. See documentation for specifics
+- The ping test now has time as an integer rather than a float to match other tests
+- The jmeter test now has time as the current time rather than the test duration to match other tests
+
 ## 1.5.0 - 2017-08-16
 ### Added
 - New configuration options in the jmeter test. You can now specify `port` and `path` when connecting to a server

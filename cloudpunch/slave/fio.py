@@ -89,9 +89,9 @@ class CloudPunchTest(Thread):
                     for label in ['read', 'write']:
                         self.final_results[jobname][label].append({
                             'time': data['timestamp'],
-                            'total_bytes': job[label]['io_bytes'] * 1000,
-                            'bandwidth_bytes': job[label]['bw'] * 1000,
-                            'latency_msec': job[label]['lat']['mean'] / 1000,
+                            'bytes': job[label]['io_bytes'] * 1000,
+                            'bandwidth': job[label]['bw'] * 1000,
+                            'latency': job[label]['lat']['mean'] / 1000,
                             'iops': job[label]['iops']
                         })
 
@@ -104,16 +104,16 @@ class CloudPunchTest(Thread):
                     try:
                         # Exception will happen if results were 0 (possibly because a 0% read/write)
                         self.final_results[jobname][label] = {
-                            'total_bytes': results[jobname][label]['bytes'],
-                            'bandwidth_bytes': sum(results[jobname][label]['bw']) / len(results[jobname][label]['bw']),
-                            'latency_msec': sum(results[jobname][label]['lat']) / len(results[jobname][label]['lat']),
+                            'bytes': results[jobname][label]['bytes'],
+                            'bandwidth': sum(results[jobname][label]['bw']) / len(results[jobname][label]['bw']),
+                            'latency': sum(results[jobname][label]['lat']) / len(results[jobname][label]['lat']),
                             'iops': sum(results[jobname][label]['iops']) / len(results[jobname][label]['iops'])
                         }
                     except ZeroDivisionError:
                         self.final_results[jobname][label] = {
-                            'total_bytes': 0,
-                            'bandwidth_bytes': 0,
-                            'latency_msec': 0,
+                            'bytes': 0,
+                            'bandwidth': 0,
+                            'latency': 0,
                             'iops': 0
                         }
 

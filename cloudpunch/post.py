@@ -19,36 +19,36 @@ GRAPH_LABELS = {
     'bps': 'Throughput (Gbps)',
     'retransmits': 'Retransmits',
     'load': 'CPU Load',
-    'cpu': 'CPU Count',
+    'cores': 'CPU Count',
     'requests': 'Requests per Second',
     'ecount': 'Error Count',
     'epercent': 'Error Percent'
 }
-GRAPH_MAPPINGS = {
-    'fio': {
-        'iops': 'iops',
-        'latency': 'latency_msec',
-        'bandwidth': 'bandwidth_bytes',
-        'bytes': 'total_bytes'
-    },
-    'iperf': {
-        'bps': 'bps',
-        'retransmits': 'retransmits'
-    },
-    'stress': {
-        'load': 'load',
-        'cpu': 'cpu'
-    },
-    'ping': {
-        'latency': 'latency'
-    },
-    'jmeter': {
-        'requests': 'requests_per_second',
-        'ecount': 'error_count',
-        'epercent': 'error_percent',
-        'latency': 'latency_msec'
-    }
-}
+# GRAPH_MAPPINGS = {
+#     'fio': {
+#         'iops': 'iops',
+#         'latency': 'latency_msec',
+#         'bandwidth': 'bandwidth_bytes',
+#         'bytes': 'total_bytes'
+#     },
+#     'iperf': {
+#         'bps': 'bps',
+#         'retransmits': 'retransmits'
+#     },
+#     'stress': {
+#         'load': 'load',
+#         'cpu': 'cpu'
+#     },
+#     'ping': {
+#         'latency': 'latency'
+#     },
+#     'jmeter': {
+#         'requests': 'requests_per_second',
+#         'ecount': 'error_count',
+#         'epercent': 'error_percent',
+#         'latency': 'latency_msec'
+#     }
+# }
 GRAPH_DEFAULTS = {
     'fio': 'iops',
     'iperf': 'bps',
@@ -447,13 +447,13 @@ class Post(object):
                             # validate test stat
                             if not self.stat:
                                 self.stat = GRAPH_DEFAULTS[test]
-                            if self.stat not in GRAPH_MAPPINGS[test]:
-                                valid_options = ', '.join(GRAPH_MAPPINGS[test].keys())
+                            if self.stat not in results[test][server][process_test][io_type]:
+                                valid_options = ', '.join(results[test][server][process_test][io_type].keys())
                                 raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
                                                                                                          self.stat,
                                                                                                          valid_options))
                             # process y axis
-                            current_seq = results[test][server][process_test][io_type][GRAPH_MAPPINGS[test][self.stat]]
+                            current_seq = results[test][server][process_test][io_type][self.stat]
                             if io_type == 'read':
                                 y = current_seq
                             else:
@@ -462,20 +462,18 @@ class Post(object):
                         # process x axis
                         if test == 'stress':
                             current_time = 0
-                            for time in results[test][server]['timeout']:
+                            for time in results[test][server]['duration']:
                                 x.append(current_time)
                                 current_time += time
                                 x.append(current_time)
-                        elif test in ['ping', 'iperf']:
+                        else:
                             for time in results[test][server]['time']:
                                 x.append(round(time - results[test][server]['time'][0] + 1))
-                        elif test == 'jmeter':
-                            x = results[test][server]['time']
                         # validate test stat
                         if not self.stat:
                             self.stat = GRAPH_DEFAULTS[test]
-                        if self.stat not in GRAPH_MAPPINGS[test]:
-                            valid_options = ', '.join(GRAPH_MAPPINGS[test].keys())
+                        if self.stat not in results[test][server]:
+                            valid_options = ', '.join(results[test][server].keys())
                             raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
                                                                                                      self.stat,
                                                                                                      valid_options))
@@ -487,7 +485,7 @@ class Post(object):
                             for bit in results[test][server][self.stat]:
                                 y.append(bit / 1000000000)
                         else:
-                            y = results[test][server][GRAPH_MAPPINGS[test][self.stat]]
+                            y = results[test][server][self.stat]
                     if test == 'fio':
                         traces.append(go.Scatter(x=x,
                                                  y=y,

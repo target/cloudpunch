@@ -32,17 +32,22 @@ class CloudPunchTest(Thread):
 
     def runtest(self):
         # Configuration setup
-        target = self.config['match_ip'] if self.config['server_client_mode'] else self.config['ping']['target']
+        if self.config['server_client_mode']:
+            server_ip = self.config['match_ip']
+        elif 'server_ip' in self.config['ping']:
+            server_ip = self.config['ping']['target']
+        else:
+            raise ConfigError('Missing ping target server')
         duration = str(self.config['ping']['duration'])
 
         results = []
-        logging.info('Starting ping command to server %s for %s seconds', target, duration)
-        ping = subprocess.Popen(['ping', '-c', duration, target],
+        logging.info('Starting ping command to server %s for %s seconds', server_ip, duration)
+        ping = subprocess.Popen(['ping', '-c', duration, server_ip],
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         for line in iter(ping.stdout.readline, ''):
             latency = re.findall(r'time=(\d+\.\d+)', line)
-            now = time.time()
+            now = int(time.time())
             if latency:
                 latency = float(latency[0])
                 # Over time results
@@ -81,3 +86,10 @@ class CloudPunchTest(Thread):
                 self.merge_configs(default[key], new[key])
             else:
                 default[key] = new[key]
+
+
+class ConfigError(Exception):
+
+    def __init__(self, message):
+        super(ConfigError, self).__init__(message)
+        self.message = message

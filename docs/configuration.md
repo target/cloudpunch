@@ -178,7 +178,7 @@ recovery:
 
 - `test_start_delay` - Number of seconds to wait before a test starts. If `test_mode` is "list" the delay will be applied before the start of each test. For example: wait, test, wait, test. If `test_mode` is "concurrent" the delay will be applied only before the initial start. For example: wait, all tests
 
-- `recovery` - Used to recover the environment if instance registration takes too long.`recovery` has the following sub keys:
+- `recovery` - Used to recover the environment if instance registration takes too long. `recovery` has the following sub keys:
 
   - `enable` - If to enable recovery mode
 

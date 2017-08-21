@@ -67,6 +67,15 @@ fio:
 
 ### Results
 
+The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
+
+| Results Name | Definition                            |
+| ------------ | ------------------------------------- |
+| iops         | Input/Output Operations per Second    |
+| latency      | Latency in milliseconds               |
+| bandwidth    | Bandwidth in bytes per second         |
+| bytes        | Total number of bytes written or read |
+
 ##### Overtime Results
 
 ```yaml
@@ -75,26 +84,26 @@ fio:
     fio:
       fiotest:
         read:
-          - latency_msec: 0.59629
+          - latency: 0.59629
             iops: 6518.19
-            bandwidth_bytes: 26059
-            total_bytes: 23636
+            bandwidth: 26059
+            bytes: 23636
             time: 1475079260
-          - latency_msec: 0.6225
+          - latency: 0.6225
             iops: 6560.09
-            bandwidth_bytes: 26213
-            total_bytes: 23776
+            bandwidth: 26213
+            bytes: 23776
             time: 1475079260
         write:
-          - latency_msec: 0.59629
+          - latency: 0.59629
             iops: 6518.19
-            bandwidth_bytes: 26059
-            total_bytes: 23636
+            bandwidth: 26059
+            bytes: 23636
             time: 1475079260
-          - latency_msec: 0.6225
+          - latency: 0.6225
             iops: 6560.09
-            bandwidth_bytes: 26213
-            total_bytes: 23776
+            bandwidth: 26213
+            bytes: 23776
             time: 1475079260
 ```
 
@@ -106,29 +115,16 @@ fio:
     fio:
       fiotest:
         read:
-          latency_msec: 97.28486333333333
+          latency: 97.28486333333333
           iops: 43.309999999999995
-          bandwidth_bytes: 166000
-          total_bytes: 1848000
+          bandwidth: 166000
+          bytes: 1848000
         write:
-          latency_msec: 76.62147999999999
+          latency: 76.62147999999999
           iops: 36.88666666666667
-          bandwidth_bytes: 144000
-          total_bytes: 1620000
+          bandwidth: 144000
+          bytes: 1620000
 ```
-
-### Post Processing
-
-##### Graph Stats
-
-The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
-
-| Stat Name | Results Name    | Graph Label                               |
-| --------- | --------------- | ----------------------------------------- |
-| iops      | iops            | Input/Output Operations per Second (IOPS) |
-| latency   | latency_msec    | Latency (msec)                            |
-| bandwidth | bandwidth_bytes | Bandwidth (Bps)                           |
-| bytes     | total_bytes     | Total Bytes                               |
 
 ## iPerf3
 
@@ -182,6 +178,13 @@ iperf:
 
 ### Results
 
+The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
+
+| Results Name | Definition         |
+| ------------ | ------------------ |
+| bps          | Bits per second    |
+| retransmits  | Packet retransmits |
+
 ##### Overtime Results
 
 ```yaml
@@ -215,17 +218,6 @@ iperf:
       retransmits: 0
 ```
 
-### Post Processing
-
-##### Graph Stats
-
-The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
-
-| Stat Name   | Results Name | Graph Label       |
-| ----------- | ------------ | ----------------- |
-| bps         | bps          | Throughput (Gbps) |
-| retransmits | retransmits  | Retransmits       |
-
 ## Ping
 
 Ping is used solely for latency testing. It often is used with iPerf3 to see how latency is affected by high network throughput.
@@ -250,7 +242,11 @@ ping:
 
 ### Results
 
-Latency is in msec
+The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
+
+| Results Name | Definition              |
+| ------------ | ----------------------- |
+| latency      | Latency in milliseconds |
 
 ##### Overtime Results
 
@@ -259,15 +255,15 @@ Latency is in msec
   results:
     ping:
       - latency: 0.874
-        time: 1470152735.793147
+        time: 1470152735
       - latency: 0.256
-        time: 1470152736.792701
+        time: 1470152736
       - latency: 0.23
-        time: 1470152737.793253
+        time: 1470152737
       - latency: 0.224
-        time: 1470152738.792618
+        time: 1470152738
       - latency: 0.2
-        time: 1470152739.792757
+        time: 1470152739
 ```
 
 ##### Summary Results
@@ -278,16 +274,6 @@ Latency is in msec
     ping:
       latency: 0.2032
 ```
-
-### Post Processing
-
-##### Graph Stats
-
-The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
-
-| Stat Name   | Results Name | Graph Label       |
-| ----------- | ------------ | ----------------- |
-| latency     | latency      | Latency (msec)    |
 
 ## Stress-ng
 
@@ -301,17 +287,17 @@ The stress-ng configuration is designed to run a random amount of CPU usage over
 
 - `nice` - Set a process priority for stress-ng. This can be used to not overload an instance completely
 
-- `cpu-min` - The minimum number of CPU cores used for each iteration
+- `cores_min` - The minimum number of CPU cores used for each iteration
 
-- `cpu-max` - The maximum number of CPU cores used for each iteration
+- `cores_max` - The maximum number of CPU cores used for each iteration
 
-- `duration-min` - The minimum duration of each iteration
+- `duration_min` - The minimum duration of each iteration
 
-- `duration-max` - The maximum duration of each iteration
+- `duration_max` - The maximum duration of each iteration
 
-- `load-min` - The minimum percent of CPU load per iteration
+- `load_min` - The minimum percent of CPU load per iteration
 
-- `load-max` - The maximum percent of CPU load per iteration
+- `load_max` - The maximum percent of CPU load per iteration
 
 - `iteration` - How many iteration stress-ng will be ran
 
@@ -322,12 +308,12 @@ The stress-ng configuration is designed to run a random amount of CPU usage over
 ```yaml
 stress:
   nice: 0
-  cpu-min: 1
-  cpu-max: 2
-  duration-min: 5
-  duration-max: 10
-  load-min: 25
-  load-max: 90
+  cores_min: 1
+  cores_max: 2
+  duration_min: 5
+  duration_max: 10
+  load_min: 25
+  load_max: 90
   iterations: 5
   delay: 5
 ```
@@ -336,6 +322,13 @@ stress:
 
 Stress-ng results are what random number stress-ng was assigned to run at each iteration
 
+The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
+
+| Results Name | Definition                    |
+| ------------ | ----------------------------- |
+| load         | Amount of CPU load in percent |
+| cores        | Number of CPU cores           |
+
 ##### Overtime Results
 
 ```yaml
@@ -343,20 +336,20 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
   results:
     stress:
       - load: 69
-        cpu: 1
-        timeout: 5
+        cores: 1
+        duration: 5
       - load: 65
-        cpu: 1
-        timeout: 8
+        cores: 1
+        duration: 8
       - load: 64
-        cpu: 1
-        timeout: 5
+        cores: 1
+        duration: 5
       - load: 27
-        cpu: 1
-        timeout: 7
+        cores: 1
+        duration: 7
       - load: 53
-        cpu: 2
-        timeout: 5
+        cores: 2
+        duration: 5
 ```
 
 ##### Summary Results
@@ -366,20 +359,9 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
   results:
     stress:
       load: 69
-      cpu: 1
-      timeout: 5
+      cores: 1
+      duration: 5
 ```
-
-### Post Processing
-
-##### Graph Stats
-
-The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post  when using `-f graph`
-
-| Stat Name   | Results Name | Graph Label       |
-| ----------- | ------------ | ----------------- |
-| load        | load         | CPU Load          |
-| cpu         | cpu          | CPU Count         |
 
 ## JMeter
 
@@ -416,7 +398,7 @@ jmeter:
 
 - `threads` - the number of threads to start for http requests
 
-- `ramp-up` - the number of seconds for the threads to start
+- `ramp_up` - the number of seconds for the threads to start
 
 - `duration` - the number of seconds to run the test for
 
@@ -429,7 +411,7 @@ jmeter:
 ```yaml
 jmeter:
   threads: 10
-  ramp-up: 0
+  ramp_up: 0
   duration: 60
   port: 80
   path: /api/system/health
@@ -437,27 +419,36 @@ jmeter:
 
 ### Results
 
+The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
+
+| Results Name | Definition              |
+| ------------ | ----------------------- |
+| rps          | Requests per second     |
+| latency      | Latency in milliseconds |
+| ecount       | Packet error count      |
+| epercent     | Packet error percentage |
+
 ##### Overtime Results
 
 ```yaml
 - hostname: cloudpunch-8153315-c-r2-n2-c2
   results:
     jmeter:
-    - error_count: 0
-      error_percent: 0.0
-      latency_msec: 7
-      requests_per_second: 1286.5
-      time: 20
-    - error_count: 0
-      error_percent: 0.0
-      latency_msec: 7
-      requests_per_second: 1405.5
-      time: 50
-    - error_count: 0
-      error_percent: 0.0
-      latency_msec: 7
-      requests_per_second: 1402.5
-      time: 80
+    - ecount: 0
+      epercent: 0.0
+      latency: 7
+      rps: 1286.5
+      time: 1470152735
+    - ecount: 0
+      epercent: 0.0
+      latency: 7
+      rps: 1405.5
+      time: 1470152736
+    - ecount: 0
+      epercent: 0.0
+      latency: 7
+      rps: 1402.5
+      time: 1470152737
 ```
 
 ##### Summary Results
@@ -466,21 +457,8 @@ jmeter:
 - hostname: cloudpunch-5487841-c-master-n1-c1
   results:
     jmeter:
-      error_count: 2405
-      error_percent: 2.07
-      latency_msec: 15
+      ecount: 2405
+      epercent: 2.07
+      latency: 15
       requests-per-second: 1937.7
 ```
-
-### Post Processing
-
-##### Graph Stats
-
-The following is a mapping of test results to the graph format stats. Use these stats with the `-s` option on cloudpunch post when using `-f graph`
-
-| Stat Name   | Results Name        | Graph Label         |
-| ----------- | ------------------- | ------------------- |
-| requests    | requests_per_second | Requests per Second |
-| ecount      | error_count         | Error Count         |
-| epercent    | error_percent       | Error Percent       |
-| latency     | latency_msec        | Latency (msec)      |

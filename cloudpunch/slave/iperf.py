@@ -22,7 +22,7 @@ class CloudPunchTest(Thread):
                     'bps_min': 100000,
                     'bps_max': 100000000,
                     'duration_min': 10,
-                    'duration-max': 30,
+                    'duration_max': 30,
                     'iterations': 10,
                     'threads': 1,
                     'max_throughput': True,
@@ -48,10 +48,10 @@ class CloudPunchTest(Thread):
         elif self.config['role'] == 'client' or not self.config['server_client_mode']:
             if self.config['server_client_mode']:
                 server_ip = self.config['match_ip']
-            else:
-                if 'target' not in self.config['iperf']:
-                    raise ConfigError('Missing iperf target server')
+            elif 'target' in self.config['iperf']:
                 server_ip = self.config['iperf']['target']
+            else:
+                raise ConfigError('Missing iperf target server')
             logging.info('Starting iperf process in client mode connecting to %s', server_ip)
             # Wait 5 seconds to make sure iPerf servers have time to start
             time.sleep(5)
