@@ -9,7 +9,9 @@ A list of notable changes will be documented here
 
 ### Changed
 - All official tests now have normalized settings and results. See documentation for specifics
+- All graphs now use datetime instead of the number of seconds for the X axis
 - The ping test now has time as an integer rather than a float to match other tests
+- The stress test now has time as the current time rather than duration
 - The jmeter test now has time as the current time rather than the test duration to match other tests
 
 ## 1.5.0 - 2017-08-16

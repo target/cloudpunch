@@ -48,20 +48,18 @@ class CloudPunchTest(Thread):
 
             results = {
                 'cores': [],
-                'duration': [],
                 'load': []
             }
             # Over time results
             if self.config['overtime_results']:
                 self.final_results.append({
                     'cores': cores,
-                    'duration': duration,
+                    'time': int(time.time()),
                     'load': load
                 })
             # Summary results
             else:
                 results['cores'].append(cores)
-                results['duration'].append(duration)
                 results['load'].append(load)
 
             command = 'nice -n %s stress-ng --cpu %s --timeout %ss --cpu-load %s' % (self.config['stress']['nice'],
@@ -79,13 +77,11 @@ class CloudPunchTest(Thread):
             try:
                 self.final_results = {
                     'cores': sum(results['cores']) / len(results['cores']),
-                    'duration': sum(results['duration']) / len(results['duration']),
                     'load': sum(results['load']) / len(results['load'])
                 }
             except ZeroDivisionError:
                 self.final_results = {
                     'cores': -1,
-                    'duration': -1,
                     'load': -1
                 }
 

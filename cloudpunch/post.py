@@ -2,6 +2,7 @@ import yaml
 import json
 import os
 import logging
+import datetime
 import plotly
 import plotly.graph_objs as go
 
@@ -20,41 +21,16 @@ GRAPH_LABELS = {
     'retransmits': 'Retransmits',
     'load': 'CPU Load',
     'cores': 'CPU Count',
-    'requests': 'Requests per Second',
+    'rps': 'Requests per Second',
     'ecount': 'Error Count',
     'epercent': 'Error Percent'
 }
-# GRAPH_MAPPINGS = {
-#     'fio': {
-#         'iops': 'iops',
-#         'latency': 'latency_msec',
-#         'bandwidth': 'bandwidth_bytes',
-#         'bytes': 'total_bytes'
-#     },
-#     'iperf': {
-#         'bps': 'bps',
-#         'retransmits': 'retransmits'
-#     },
-#     'stress': {
-#         'load': 'load',
-#         'cpu': 'cpu'
-#     },
-#     'ping': {
-#         'latency': 'latency'
-#     },
-#     'jmeter': {
-#         'requests': 'requests_per_second',
-#         'ecount': 'error_count',
-#         'epercent': 'error_percent',
-#         'latency': 'latency_msec'
-#     }
-# }
 GRAPH_DEFAULTS = {
     'fio': 'iops',
     'iperf': 'bps',
     'stress': 'load',
     'ping': 'latency',
-    'jmeter': 'requests'
+    'jmeter': 'rps'
 }
 
 
@@ -287,10 +263,10 @@ class Post(object):
                 converted[jobname] = {}
                 for io_type in ['read', 'write']:
                     converted[jobname][io_type] = {
-                        'latency_msec': round(data[jobname][io_type]['latency_msec'], 2),
+                        'latency': round(data[jobname][io_type]['latency'], 2),
                         'iops': self.human_format(data[jobname][io_type]['iops']),
-                        'bandwidth_bytes': '%sBps' % self.human_format(data[jobname][io_type]['bandwidth_bytes']),
-                        'total_bytes': '%sB' % self.human_format(data[jobname][io_type]['total_bytes'])
+                        'bandwidth': '%sBps' % self.human_format(data[jobname][io_type]['bandwidth']),
+                        'bytes': '%sB' % self.human_format(data[jobname][io_type]['bytes'])
                     }
         elif test == 'iperf':
             converted = {
@@ -299,21 +275,20 @@ class Post(object):
             }
         elif test == 'stress':
             converted = {
-                'cpu': round(data['cpu'], 2),
-                'timeout': round(data['timeout'], 2),
+                'cores': round(data['cores'], 2),
+                'duration': round(data['duration'], 2),
                 'load': round(data['load'], 2)
             }
         elif test == 'ping':
             converted = {
-                'duration': round(data['duration'], 2),
                 'latency': round(data['latency'], 2)
             }
         elif test == 'jmeter':
             converted = {
-                'requests_per_second': round(data['requests_per_second'], 1),
-                'latency_msec': data['latency_msec'],
-                'error_count': data['error_count'],
-                'error_percent': '%s%%' % round(data['error_percent'], 2),
+                'rps': round(data['rps'], 1),
+                'latency': data['latency'],
+                'ecount': data['ecount'],
+                'epercent': '%s%%' % round(data['epercent'], 2),
             }
         else:
             raise PostExcept('Unsupported test type %s' % test)
@@ -342,55 +317,33 @@ class Post(object):
                 table = []
                 # fio is special because it has stats for each job
                 if test == 'fio':
-                    for jobname in results['mean']['fio'].keys():
+                    for jobname in results['mean']['fio']:
                         # Create fio job header
                         table.append(['fio %s' % jobname])
                         header = ['stat']
-                        for io_type in ['read', 'write']:
-                            for stat in ['iops', 'latency_msec', 'bandwidth_bytes', 'total_bytes']:
+                        for io_type in results['mean']['fio'][jobname]:
+                            for stat in results['mean']['fio'][jobname][io_type]:
                                 header.append('%s %s' % (io_type, stat))
                         table.append(header)
-                        for label in ['mean', 'median', 'mode', 'minrange', 'maxrange', 'total']:
+                        for label in results:
                             # Create fio job row
                             row = [label]
-                            for io_type in ['read', 'write']:
-                                for stat in ['iops', 'latency_msec', 'bandwidth_bytes', 'total_bytes']:
+                            for io_type in results['mean']['fio'][jobname]:
+                                for stat in results['mean']['fio'][jobname][io_type]:
                                     row.append(results[label]['fio'][jobname][io_type][stat])
                             table.append(row)
-                # Create headers
-                elif test == 'iperf':
-                    table.append(['iperf'])
-                    table.append(['stat', 'bps', 'retransmits'])
-                elif test == 'stress':
-                    table.append(['stress'])
-                    table.append(['stat', 'cpu', 'timeout', 'load'])
-                elif test == 'ping':
-                    table.append(['ping'])
-                    table.append(['stat', 'duration', 'latency'])
-                elif test == 'jmeter':
-                    table.append(['jmeter'])
-                    table.append(['stat', 'requests_per_second', 'latency_msec', 'error_count', 'error_percent'])
-                for label in ['mean', 'median', 'mode', 'minrange', 'maxrange', 'total']:
-                    # Create rows except fio
-                    if test == 'iperf':
-                        table.append([label,
-                                      results[label][test]['bps'],
-                                      results[label][test]['retransmits']])
-                    elif test == 'stress':
-                        table.append([label,
-                                      results[label][test]['cpu'],
-                                      results[label][test]['timeout'],
-                                      results[label][test]['load']])
-                    elif test == 'ping':
-                        table.append([label,
-                                      results[label][test]['duration'],
-                                      results[label][test]['latency']])
-                    elif test == 'jmeter':
-                        table.append([label,
-                                      results[label][test]['requests_per_second'],
-                                      results[label][test]['latency_msec'],
-                                      results[label][test]['error_count'],
-                                      results[label][test]['error_percent']])
+                else:
+                    table.append([test])
+                    # Create headers
+                    header = ['stat']
+                    header += results['mean'][test].keys()
+                    table.append(header)
+                    for label in results:
+                        # Create rows
+                        row = [label]
+                        for stat in results[label][test]:
+                            row.append(results[label][test][stat])
+                        table.append(row)
                 tables.append(table)
             current_table = 0
             final_table = ''
@@ -439,7 +392,7 @@ class Post(object):
                         for io_type in ['read', 'write']:
                             # process x axis
                             for time in results[test][server][process_test][io_type]['time']:
-                                current_time = time - results[test][server][process_test][io_type]['time'][0] + 1
+                                current_time = datetime.datetime.fromtimestamp(time)
                                 if io_type == 'read':
                                     x.append(current_time)
                                 else:
@@ -468,7 +421,7 @@ class Post(object):
                                 x.append(current_time)
                         else:
                             for time in results[test][server]['time']:
-                                x.append(round(time - results[test][server]['time'][0] + 1))
+                                x.append(datetime.datetime.fromtimestamp(time))
                         # validate test stat
                         if not self.stat:
                             self.stat = GRAPH_DEFAULTS[test]
@@ -501,7 +454,7 @@ class Post(object):
                                                  mode='lines+markers',
                                                  name='-'.join(server.split('-')[3:])))
                 layout = go.Layout(title='CloudPunch %s %s' % (test, self.stat),
-                                   xaxis={'title': GRAPH_LABELS['time']},
+                                   xaxis={'type': 'date'},
                                    yaxis={'title': GRAPH_LABELS[self.stat]})
                 fig = go.Figure(data=traces, layout=layout)
                 filename = self.output_file
