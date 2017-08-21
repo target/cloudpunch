@@ -42,9 +42,9 @@ class CloudPunchTest(Thread):
             logging.info('Running iteration %s of %s', i, self.config['stress']['iterations'])
 
             # Generate random numbers based on min/max configuration
-            cores = random.randint(self.config['stress']['cores-min'], self.config['stress']['cores-max'])
-            duration = random.randint(self.config['stress']['duration-min'], self.config['stress']['duration-max'])
-            load = random.randint(self.config['stress']['load-min'], self.config['stress']['load-max'])
+            cores = random.randint(self.config['stress']['cores_min'], self.config['stress']['cores_max'])
+            duration = random.randint(self.config['stress']['duration_min'], self.config['stress']['duration_max'])
+            load = random.randint(self.config['stress']['load_min'], self.config['stress']['load_max'])
 
             results = {
                 'cores': [],
