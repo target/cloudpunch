@@ -40,7 +40,8 @@ setup(name='cloudpunch',
           'cloudpunch',
           'cloudpunch.master',
           'cloudpunch.ostlib',
-          'cloudpunch.slave'
+          'cloudpunch.slave',
+          'cloudpunch.utils'
       ],
       include_package_data=True,
       install_requires=read_reqs('requirements.txt'),

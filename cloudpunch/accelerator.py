@@ -118,8 +118,8 @@ class Accelerator(object):
             logging.info(e.message)
         except KeyboardInterrupt:
             pass
-        except Exception as e:
-            logging.error('%s: %s', type(e).__name__, e.message)
+        # except Exception as e:
+        #     logging.error('%s: %s', type(e).__name__, e.message)
         finally:
             # Attempts to remove all resources. Any left over will be saved to a file for later removal
             self.cleanup()
@@ -720,12 +720,12 @@ class Accelerator(object):
 
     def stage_swift(self, roles, label):
         for role in roles:
-            if self.env[label][role]['swift']['enable']:
+            if self.env[label][role]['container']['enable']:
                 swift = osswift.Container(self.sessions[label],
                                           self.creds[label].get_cacert(),
                                           not self.verify)
                 swift.create('%s-%s' % (self.cp_name, role))
-                self.resources['swift'][label].append(swift)
+                self.resources['containers'][label].append(swift)
                 if 'authtoken' not in self.config:
                     self.config['authtoken'] = {}
                 self.config['authtoken'][role] = self.sessions[label].get_token()
