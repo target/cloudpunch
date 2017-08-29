@@ -2,8 +2,9 @@ import os
 import logging
 import time
 import json
-import collections
 import random
+
+import cloudpunch.utils.config as cpc
 
 from threading import Thread
 
@@ -29,8 +30,7 @@ class CloudPunchTest(Thread):
                     'mss': 1460
                 }
             }
-            self.merge_configs(default_config, self.config)
-            self.config = default_config
+            self.config = cpc.merge_configs(default_config, self.config)
             self.runtest()
         except Exception as e:
             # Send exceptions back to master
@@ -108,14 +108,6 @@ class CloudPunchTest(Thread):
                 self.results['bps'].append(i['sum']['bits_per_second'])
                 self.results['retransmits'].append(i['sum']['retransmits'])
         logging.info('Completed iperf command: %s', command)
-
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
 
 
 class ConfigError(Exception):

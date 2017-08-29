@@ -1,7 +1,8 @@
 import os
 import yaml
 import logging
-import collections
+
+import cloudpunch.utils.config as cpc
 
 # List of offical files inside cp_slave (not test files)
 OFFICIAL_FILES = ['__init__', 'cp_slave', 'sysinfo', 'flaskapp']
@@ -32,6 +33,11 @@ class Configuration(object):
                 'type': 'ask',
                 'threshold': 80,
                 'retries': 12
+            },
+            'metrics': {
+                'enable': False,
+                'topic': '',
+                'brokers': []
             }
         }
         read_config = {}
@@ -46,8 +52,7 @@ class Configuration(object):
             logging.debug('Using default CloudPunch configuration')
 
         # Merge default and config file
-        self.merge_configs(default_config, read_config)
-        self.final_config = default_config
+        self.final_config = cpc.merge_configs(default_config, read_config)
 
         # Check official tests (tests in slave/)
         slave_dir = os.path.dirname(os.path.realpath(__file__)) + '/slave'
@@ -142,11 +147,18 @@ class Configuration(object):
 
         # Check recovery mode
         if self.final_config['recovery']['type'] not in ['ask', 'rebuild']:
-            raise ConfigError('Invalid recovery type. Must be ask, continue, or rebuild')
+            raise ConfigError('Invalid recovery type. Must be ask or rebuild')
         if self.final_config['recovery']['threshold'] < 0:
             raise ConfigError('Invalid recovery threshold. Must be 0 or greater')
         if self.final_config['recovery']['retries'] < 1:
             raise ConfigError('Invalid recovery retries. Must be greater than 0')
+
+        # Check metrics
+        if self.final_config['metrics']['enable']:
+            if not self.final_config['metrics']['topic']:
+                raise ConfigError('Missing metrics topic')
+            if not self.final_config['metrics']['brokers']:
+                raise ConfigError('Missing metrics brokers')
 
         # Network and environment number checks
         if self.final_config['network_mode'] not in ['full', 'single-router', 'single-network']:
@@ -167,14 +179,6 @@ class Configuration(object):
             if self.final_config['instances_per_network'] > 62500:
                 raise ConfigError('Number of instances per network cannot be greater than 62500'
                                   ' if network mode is single-router or single-network')
-
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
 
     def loadfile(self, data_file, label='Configuration'):
         with open(data_file) as f:

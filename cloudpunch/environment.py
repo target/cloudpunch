@@ -1,7 +1,8 @@
 import os
 import yaml
 import logging
-import collections
+
+import cloudpunch.utils.config as cpc
 
 
 class Environment(object):
@@ -40,6 +41,9 @@ class Environment(object):
                     'enable': False,
                     'size': 10
                 },
+                'container': {
+                    'enable': False
+                },
                 'loadbalancer': {
                     'enable': False,
                     'method': 'ROUND_ROBIN',
@@ -75,6 +79,9 @@ class Environment(object):
                 'boot_from_vol': {
                     'enable': False,
                     'size': 10
+                },
+                'container': {
+                    'enable': False
                 },
                 'loadbalancer': {
                     'enable': False,
@@ -127,8 +134,7 @@ class Environment(object):
             logging.debug('Using default CloudPunch environment configuration')
 
         # Merge default and config file
-        self.merge_configs(default_config, read_config)
-        self.final_config = default_config
+        self.final_config = cpc.merge_configs(default_config, read_config)
 
         # Replace ~ with $HOME
         if self.final_config['public_key_file'][0] == '~':
@@ -138,14 +144,6 @@ class Environment(object):
         # Error checking
         if not os.path.isfile(self.final_config['public_key_file']):
             raise EnvError('Public key file %s does not exist' % self.final_config['public_key_file'])
-
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
 
     def loadconfig(self, env_file):
         with open(env_file) as f:

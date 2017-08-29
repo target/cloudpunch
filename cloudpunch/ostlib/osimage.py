@@ -95,14 +95,12 @@ class Image(BaseImage):
         image = self.get(image_id, use_cached)
         return image.name
 
-    def get_id(self, image_name=None, include_public=True):
+    def get_id(self, image_name=None, project_id=None, all_projects=False, include_public=False):
         if image_name:
-            images = self.glance.images.list()
+            images = self.list(project_id, all_projects, include_public)
             for image in images:
-                if image.visibility == 'public' and not include_public:
-                    continue
-                if image.name == image_name:
-                    return image.id
+                if image['name'] == image_name:
+                    return image['id']
             raise OSImageError('Image %s was not found' % image_name)
         image = self.get(use_cached=True)
         return image.id

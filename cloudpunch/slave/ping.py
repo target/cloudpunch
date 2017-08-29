@@ -1,8 +1,9 @@
 import re
 import subprocess
 import logging
-import collections
 import time
+
+import cloudpunch.utils.config as cpc
 
 from threading import Thread
 
@@ -22,8 +23,7 @@ class CloudPunchTest(Thread):
                     'duration': 10
                 }
             }
-            self.merge_configs(default_config, self.config)
-            self.config = default_config
+            self.config = cpc.merge_configs(default_config, self.config)
             self.runtest()
         except Exception as e:
             # Send exceptions back to master
@@ -78,14 +78,6 @@ class CloudPunchTest(Thread):
                 self.final_results = {
                     'latency': -1
                 }
-
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
 
 
 class ConfigError(Exception):

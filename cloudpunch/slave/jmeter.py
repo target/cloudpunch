@@ -1,9 +1,10 @@
 import os
 import subprocess
-import collections
 import xmltodict
 import logging
 import time
+
+import cloudpunch.utils.config as cpc
 
 from threading import Thread
 
@@ -34,8 +35,7 @@ class CloudPunchTest(Thread):
                     }
                 }
             }
-            self.merge_configs(default_config, self.config)
-            self.config = default_config
+            self.config = cpc.merge_configs(default_config, self.config)
             self.runtest()
         except Exception as e:
             # Send exceptions back to master
@@ -95,14 +95,6 @@ class CloudPunchTest(Thread):
                     }
 
             popen.stdout.close()
-
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
 
     def write_jmeter_config(self, jconfig, target):
         with open(ORIGINAL_JMETER_FILE, 'r') as f:

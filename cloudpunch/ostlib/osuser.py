@@ -41,7 +41,7 @@ class Session(object):
 
 class BaseUser(object):
 
-    def __init__(self, session, region_name=None, api_version=2):
+    def __init__(self, session, region_name=None, api_version=3):
         # Create the keystone object which handles interaction with the API
         self.keystone = kclient.Client(session=session,
                                        region_name=region_name)
@@ -138,7 +138,13 @@ class User(BaseUser):
         user = self.get(user_id, use_cached)
         return user.name
 
-    def get_id(self):
+    def get_id(self, user_name=None, domain=None, group=None):
+        if user_name:
+            users = self.list(domain, group)
+            for user in users:
+                if user['name'] == user_name:
+                    return user['id']
+            raise OSUserError('User %s was not found' % user_name)
         user = self.get(use_cached=True)
         return user.id
 
@@ -177,11 +183,11 @@ class Project(BaseUser):
         elif self.api_version == 3:
             self.project = self.keystone.projects.get(project_id)
 
-    def list(self):
+    def list(self, domain=None, user=None):
         if self.api_version == 2:
             projects = self.keystone.tenants.list()
         elif self.api_version == 3:
-            projects = self.keystone.projects.list()
+            projects = self.keystone.projects.list(domain, user)
         project_info = []
         for project in projects:
             project_info.append({
@@ -211,7 +217,13 @@ class Project(BaseUser):
         project = self.get(project_id, use_cached)
         return project.name
 
-    def get_id(self):
+    def get_id(self, project_name=None, domain=None, user=None):
+        if project_name:
+            projects = self.list(domain, user)
+            for project in projects:
+                if project['name'] == project_name:
+                    return project['id']
+            raise OSUserError('Project %s was not found' % project_name)
         project = self.get(use_cached=True)
         return project.id
 

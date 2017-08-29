@@ -102,7 +102,13 @@ class SecurityGroup(BaseNetwork):
         group = self.get(secgroup_id, use_cached)
         return group['security_group']['name']
 
-    def get_id(self):
+    def get_id(self, secgroup_name=None, project_id=None, all_projects=False):
+        if secgroup_name:
+            secgroups = self.list(project_id, all_projects)
+            for secgroup in secgroups:
+                if secgroup['name'] == secgroup_name:
+                    return secgroup['id']
+            raise OSNetworkError('Security group %s was not found' % secgroup_name)
         group = self.get(use_cached=True)
         return group['security_group']['id']
 
@@ -174,7 +180,13 @@ class Network(BaseNetwork):
         network = self.get(network_id, use_cached)
         return network['network']['name']
 
-    def get_id(self):
+    def get_id(self, network_name=None, project_id=None, all_projects=False, include_external=False):
+        if network_name:
+            networks = self.list(project_id, all_projects, include_external)
+            for network in networks:
+                if network['name'] == network_name:
+                    return network['id']
+            raise OSNetworkError('Network %s was not found' % network_name)
         network = self.get(use_cached=True)
         return network['network']['id']
 
@@ -272,7 +284,13 @@ class Subnet(BaseNetwork):
         subnet = self.get(subnet_id, use_cached)
         return subnet['subnet']['name']
 
-    def get_id(self):
+    def get_id(self, subnet_name=None, project_id=None, all_projects=False):
+        if subnet_name:
+            subnets = self.list(project_id, all_projects)
+            for subnet in subnets:
+                if subnet['name'] == subnet_name:
+                    return subnet['id']
+            raise OSNetworkError('Subnet %s was not found' % subnet_name)
         subnet = self.get(use_cached=True)
         return subnet['subnet']['id']
 
@@ -344,7 +362,13 @@ class Port(BaseNetwork):
         port = self.get(port_id, use_cached)
         return port['port']['name']
 
-    def get_id(self):
+    def get_id(self, port_name=None, project_id=None, all_projects=False):
+        if port_name:
+            ports = self.list(project_id, all_projects)
+            for port in ports:
+                if port['name'] == port_name:
+                    return port['id']
+            raise OSNetworkError('Port %s was not found' % port_name)
         port = self.get(use_cached=True)
         return port['port']['id']
 
@@ -442,7 +466,13 @@ class Router(BaseNetwork):
         router = self.get(router_id, use_cached)
         return router['router']['name']
 
-    def get_id(self):
+    def get_id(self, router_name=None, project_id=None, all_projects=False):
+        if router_name:
+            routers = self.list(project_id, all_projects)
+            for router in routers:
+                if router['name'] == router_name:
+                    return router['id']
+            raise OSNetworkError('Router %s was not found' % router_name)
         router = self.get(use_cached=True)
         return router['router']['id']
 
@@ -528,9 +558,9 @@ class FloatingIP(BaseNetwork):
 
     def get_id(self, floating_ip=None):
         if floating_ip:
-            floats = self.neutron.list_floatingips()['floatingips']
+            floats = self.list(all_projects=True)
             for floater in floats:
-                if floater['floating_ip_address'] == floating_ip:
+                if floater['ip'] == floating_ip:
                     return floater['id']
             raise OSNetworkError('Floating ip address %s not found', floating_ip)
         else:
@@ -1255,7 +1285,15 @@ class lbaasMonitor(BaseNetwork):
 class Quota(BaseNetwork):
 
     def get(self, project_id):
-        return self.neutron.show_quota(tenant_id=project_id)['quota']
+        return self.neutron.show_quota(project_id)['quota']
+
+    def set(self, project_id, **quotas):
+        self.neutron.update_quota(project_id, {'quota': quotas})
+        logging.debug('Set neutron quota to: %s', quotas)
+
+    def set_defaults(self, project_id):
+        self.neutron.delete_quota(project_id)
+        logging.debug('Set neutron quota to defaults')
 
 
 class OSNetworkError(Exception):

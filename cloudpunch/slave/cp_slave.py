@@ -5,7 +5,7 @@ import json
 import importlib
 import os
 
-from cloudpunch.slave import sysinfo
+import cloudpunch.utils.sysinfo as sysinfo
 
 
 class CPSlave(object):

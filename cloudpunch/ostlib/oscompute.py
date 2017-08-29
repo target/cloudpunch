@@ -86,7 +86,13 @@ class SecGroup(BaseCompute):
         group = self.get(secgroup_id, use_cached)
         return group.name
 
-    def get_id(self):
+    def get_id(self, secgroup_name=None, project_id=None, all_projects=False):
+        if secgroup_name:
+            secgroups = self.list(project_id, all_projects)
+            for secgroup in secgroups:
+                if secgroup['name'] == secgroup_name:
+                    return secgroup['id']
+            raise OSComputeError('Security group %s was not found' % secgroup_name)
         group = self.get(use_cached=True)
         return group.id
 
@@ -115,10 +121,13 @@ class KeyPair(BaseCompute):
 
     def list(self):
         keypairs = self.nova.keypairs.list()
-        pair_names = []
+        pair_info = []
         for keypair in keypairs:
-            pair_names.append(keypair.name)
-        return pair_names
+            pair_info.append({
+                'id': keypair.name,
+                'name': keypair.name
+            })
+        return pair_info
 
     def get(self, keypair_name=None, use_cached=False):
         if keypair_name:
@@ -133,6 +142,9 @@ class KeyPair(BaseCompute):
     def get_name(self):
         keypair = self.get(use_cached=True)
         return keypair.name
+
+    def get_id(self):
+        return self.get_name()
 
 
 class Instance(BaseCompute):
@@ -349,7 +361,13 @@ class Instance(BaseCompute):
         instance = self.get(instance_id, use_cached)
         return instance.name
 
-    def get_id(self):
+    def get_id(self, instance_name=None, project_id=None, all_projects=False):
+        if instance_name:
+            instances = self.list(project_id, all_projects)
+            for instance in instances:
+                if instance['name'] == instance_name:
+                    return instance['id']
+            raise OSComputeError('Instance %s was not found' % instance_name)
         instance = self.get(use_cached=True)
         return instance.id
 
@@ -358,6 +376,14 @@ class Quota(BaseCompute):
 
     def get(self, project_id):
         return self.nova.quotas.get(tenant_id=project_id).to_dict()
+
+    def set(self, project_id, **quotas):
+        self.nova.quotas.update(project_id, **quotas)
+        logging.debug('Set nova quota to: %s', quotas)
+
+    def set_defaults(self, projects_id):
+        self.nova.quotas.delete(projects_id)
+        logging.debug('Set nova quota to defaults')
 
 
 class OSComputeError(Exception):

@@ -12,12 +12,11 @@ SUPPORTED_TESTS = ['fio', 'iperf', 'stress', 'ping', 'jmeter']
 SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv', 'graph']
 
 GRAPH_LABELS = {
-    'time': 'Seconds',
     'iops': 'Input/Output Operations per Second (IOPS)',
     'latency': 'Latency (msec)',
     'bandwidth': 'Bandwidth (Bps)',
     'bytes': 'Total Bytes',
-    'bps': 'Throughput (Gbps)',
+    'bps': 'Throughput (bps)',
     'retransmits': 'Retransmits',
     'load': 'CPU Load',
     'cores': 'CPU Count',
@@ -423,14 +422,7 @@ class Post(object):
                                                                                                      self.stat,
                                                                                                      valid_options))
                         # process y axis
-                        if test == 'stress':
-                            for value in results[test][server][self.stat]:
-                                y += [value] * 2
-                        elif test == 'iperf' and self.stat == 'bps':
-                            for bit in results[test][server][self.stat]:
-                                y.append(bit / 1000000000)
-                        else:
-                            y = results[test][server][self.stat]
+                        y = results[test][server][self.stat]
                     if test == 'fio':
                         traces.append(go.Scatter(x=x,
                                                  y=y,
@@ -440,6 +432,12 @@ class Post(object):
                                                  y=y2,
                                                  mode='lines+markers',
                                                  name='%s-%s' % ('write', '-'.join(server.split('-')[3:]))))
+                    elif test == 'stress':
+                        traces.append(go.Scatter(x=x,
+                                                 y=y,
+                                                 mode='lines+markers',
+                                                 name='-'.join(server.split('-')[3:]),
+                                                 line={'shape': 'hv'}))
                     else:
                         traces.append(go.Scatter(x=x,
                                                  y=y,

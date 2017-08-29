@@ -8,6 +8,7 @@ from cloudpunch.ostlib import osuser
 from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
+from cloudpunch.ostlib import osswift
 
 
 class Cleanup(object):
@@ -73,7 +74,7 @@ class Cleanup(object):
             'instances', 'volumes',
             'floaters', 'routers', 'master-network', 'server-network', 'client-network',
             'keypairs', 'secgroups',
-            'users', 'projects'
+            'containers', 'users', 'projects'
         ]
         resource_breakdown = {
             'lbaas_monitors': {
@@ -144,6 +145,10 @@ class Cleanup(object):
                 'label': 'security groups',
                 'object': osnetwork.SecurityGroup(session, region, versions['nova'])
             },
+            'containers': {
+                'label': 'swift containers',
+                'object': osswift.Container(session, self.creds.get_cacert(), not self.verify)
+            },
             'users': {
                 'label': 'users',
                 'object': osuser.User(session, region, versions['keystone'])
@@ -196,14 +201,6 @@ class Cleanup(object):
                                          resource_breakdown[resource]['label'][:-1],
                                          current_resource['id'],
                                          current_resource['name'])
-                # Keypairs do not have an id, only a name
-                elif resource == 'keypairs':
-                    if 'cloudpunch' in current_resource:
-                        found_resources.append(current_resource)
-                        if self.names:
-                            logging.info('Found %s %s',
-                                         resource_breakdown[resource]['label'][:-1],
-                                         current_resource)
                 # Everything else
                 elif 'cloudpunch' in current_resource['name']:
                     found_resources.append(current_resource['id'])
@@ -238,7 +235,7 @@ class Cleanup(object):
             'instances', 'volumes',
             'floaters', 'routers', 'master-network', 'server-network', 'client-network',
             'keypairs', 'secgroups',
-            'users', 'projects'
+            'containers', 'users', 'projects'
         ]
         resource_breakdown = {
             'lbaas_monitors': {
@@ -308,6 +305,10 @@ class Cleanup(object):
             'secgroups': {
                 'label': 'security groups',
                 'object': osnetwork.SecurityGroup(session, region, versions['nova'])
+            },
+            'containers': {
+                'label': 'swift containers',
+                'object': osswift.Container(session, self.creds.get_cacert(), not self.verify)
             },
             'users': {
                 'label': 'users',

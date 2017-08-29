@@ -108,7 +108,13 @@ class Volume(BaseVolume):
         volume = self.get(volume_id, use_cached)
         return volume.display_name if self.api_version == 1 else volume.name
 
-    def get_id(self):
+    def get_id(self, volume_name=None, project_id=None, all_projects=False):
+        if volume_name:
+            volumes = self.list(project_id, all_projects)
+            for volume in volumes:
+                if volume['name'] == volume_name:
+                    return volume['id']
+            raise OSVolumeError('Volume %s was not found' % volume_name)
         volume = self.get(use_cached=True)
         return volume.id
 
@@ -196,7 +202,13 @@ class Snapshot(BaseVolume):
         snapshot = self.get(snapshot_id, use_cached)
         return snapshot.display_name if self.api_version == 1 else snapshot.name
 
-    def get_id(self):
+    def get_id(self, snapshot_name=None, project_id=None, all_projects=False):
+        if snapshot_name:
+            snapshots = self.list(project_id, all_projects)
+            for snapshot in snapshots:
+                if snapshot['name'] == snapshot_name:
+                    return snapshot['id']
+            raise OSVolumeError('Snapshot %s was not found' % snapshot_name)
         snapshot = self.get(use_cached=True)
         return snapshot.id
 
@@ -310,7 +322,13 @@ class Backup(BaseVolume):
         backup = self.get(backup_id, use_cached)
         return backup.display_name if self.api_version == 1 else backup.name
 
-    def get_id(self):
+    def get_id(self, backup_name, project_id=None, all_projects=False):
+        if backup_name:
+            backups = self.list(project_id, all_projects)
+            for backup in backups:
+                if backup['name'] == backup_name:
+                    return backup['id']
+            raise OSVolumeError('Backup %s was not found' % backup_name)
         backup = self.get(use_cached=True)
         return backup.id
 
@@ -322,9 +340,11 @@ class Quota(BaseVolume):
 
     def set(self, project_id, **quotas):
         self.cinder.quotas.update(project_id, **quotas)
+        logging.debug('Set cinder quota to: %s', quotas)
 
     def set_defaults(self, project_id):
         self.cinder.quotas.defaults(project_id)
+        logging.debug('Set cinder quota to the defaults')
 
 
 class OSVolumeError(Exception):

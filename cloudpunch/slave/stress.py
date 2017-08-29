@@ -1,8 +1,9 @@
 import os
 import logging
-import collections
 import random
 import time
+
+import cloudpunch.utils.config as cpc
 
 from threading import Thread
 
@@ -29,8 +30,7 @@ class CloudPunchTest(Thread):
                     'delay': 5
                 }
             }
-            self.merge_configs(default_config, self.config)
-            self.config = default_config
+            self.config = cpc.merge_configs(default_config, self.config)
             self.runtest()
         except Exception as e:
             # Send exceptions back to master
@@ -85,10 +85,9 @@ class CloudPunchTest(Thread):
                     'load': -1
                 }
 
-    def merge_configs(self, default, new):
-        for key, value in new.iteritems():
-            if (key in default and isinstance(default[key], dict) and
-                    isinstance(new[key], collections.Mapping)):
-                self.merge_configs(default[key], new[key])
-            else:
-                default[key] = new[key]
+
+class ConfigError(Exception):
+
+    def __init__(self, message):
+        super(ConfigError, self).__init__(message)
+        self.message = message

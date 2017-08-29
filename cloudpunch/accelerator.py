@@ -22,6 +22,7 @@ from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
 from cloudpunch.ostlib import osimage
+from cloudpunch.ostlib import osswift
 
 
 class Accelerator(object):
@@ -66,7 +67,7 @@ class Accelerator(object):
         # Resource lists. All resources created are saved in their respective list
         # These are mainly used when cleaning up resources
         self.resources = {}
-        for name in ['projects', 'users',
+        for name in ['projects', 'users', 'containers',
                      'networks', 'routers', 'floaters',
                      'instances', 'volumes', 'keypairs', 'secgroups',
                      'pools', 'pool_vips', 'members', 'monitors',
@@ -173,6 +174,8 @@ class Accelerator(object):
             self.stage_instances(roles, label)
             # Setup loadbalancers
             self.stage_loadbalancers(roles, label)
+            # Setup swift
+            self.stage_swift(roles, label)
 
         logging.info('Staging complete')
         # Print a table containing hostname, internal IP, and floating IP
@@ -715,6 +718,21 @@ class Accelerator(object):
             # cloudpunch-9079364-c-master-n1
             return int(network_name_split[4][1:])
 
+    def stage_swift(self, roles, label):
+        for role in roles:
+            if self.env[label][role]['swift']['enable']:
+                swift = osswift.Container(self.sessions[label],
+                                          self.creds[label].get_cacert(),
+                                          not self.verify)
+                swift.create('%s-%s' % (self.cp_name, role))
+                self.resources['swift'][label].append(swift)
+                if 'authtoken' not in self.config:
+                    self.config['authtoken'] = {}
+                self.config['authtoken'][role] = self.sessions[label].get_token()
+                if 'authurl' not in self.config:
+                    self.config['authurl'] = {}
+                self.config['authurl'][role] = self.creds[label].get_creds['auth_url']
+
     def show_environment(self):
         # Creates a table to show instance information
         table = [['Instance Name', 'Fixed IP', 'Floating IP']]
@@ -1063,10 +1081,7 @@ class Accelerator(object):
             elif self.resources[resource][label]:
                 cleanup_data[resource] = []
                 for r in self.resources[resource][label]:
-                    if resource == 'keypairs':
-                        cleanup_data[resource].append(r.get_name())
-                    else:
-                        cleanup_data[resource].append(r.get_id())
+                    cleanup_data[resource].append(r.get_id())
 
         roles = ['master', 'server', 'client']
         if self.creds['env2']:
