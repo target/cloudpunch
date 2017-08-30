@@ -34,7 +34,7 @@ class CloudPunchTest(Thread):
         # Configuration setup
         if self.config['server_client_mode']:
             server_ip = self.config['match_ip']
-        elif 'server_ip' in self.config['ping']:
+        elif 'target' in self.config['ping']:
             server_ip = self.config['ping']['target']
         else:
             raise ConfigError('Missing ping target server')
