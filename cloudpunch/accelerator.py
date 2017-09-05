@@ -28,7 +28,7 @@ from cloudpunch.ostlib import osswift
 class Accelerator(object):
 
     def __init__(self, config, creds, env, admin_mode=False, manual_mode=False,
-                 reuse_mode=False, yaml_mode=False, verify=True):
+                 reuse_mode=False, results_format='yaml', verify=True):
         # Save all arguments
         self.config = config.get_config()
         self.creds = creds
@@ -36,7 +36,7 @@ class Accelerator(object):
         self.admin_mode = admin_mode
         self.manual_mode = manual_mode
         self.reuse_mode = reuse_mode
-        self.yaml_mode = yaml_mode
+        self.results_format = results_format
         self.verify = verify
 
         # Randomized ID used to identify the resources created by a run
@@ -988,8 +988,8 @@ class Accelerator(object):
         if status != 200:
             raise CPError('Failed to get results from master. Aborting')
 
-        # Translate results to YAML if yaml_mode is enabled
-        if self.yaml_mode:
+        # Translate results to YAML if results_format is yaml
+        if self.results_format == 'yaml':
             results = yaml.dump(yaml.load(results), default_flow_style=False)
 
         # Send to file if in configuration or send to stdout

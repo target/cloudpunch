@@ -60,7 +60,7 @@ def cp_app():
                             action='store',
                             dest='env2_file',
                             default=None,
-                            help='environment for second OpenStack instance')
+                            help='environment file for second OpenStack environment')
     run_parser.add_argument('-r',
                             '--openrc',
                             action='store',
@@ -72,7 +72,7 @@ def cp_app():
                             action='store',
                             dest='openrc2_file',
                             default=None,
-                            help='OpenRC file for second OpenStack instance')
+                            help='OpenRC file for second OpenStack environment')
     run_parser.add_argument('-m',
                             '--hostmap',
                             action='store',
@@ -91,6 +91,12 @@ def cp_app():
                             dest='output_file',
                             default=None,
                             help='file to save results to (default: stdout)')
+    run_parser.add_argument('-t',
+                            '--format',
+                            action='store',
+                            dest='format',
+                            default='yaml',
+                            help='format to save results as (yaml or json)')
     run_parser.add_argument('-p',
                             '--password',
                             action='store',
@@ -102,7 +108,7 @@ def cp_app():
                             action='store',
                             dest='password2',
                             default=None,
-                            help='password to login into second OpenStack instance')
+                            help='password to login into second OpenStack environment')
     run_parser.add_argument('--no-env',
                             action='store_true',
                             dest='no_env',
@@ -110,11 +116,7 @@ def cp_app():
     run_parser.add_argument('--admin',
                             action='store_true',
                             dest='admin_mode',
-                            help='enable admin mode (create own tenant and user)')
-    run_parser.add_argument('--split',
-                            action='store_true',
-                            dest='split_mode',
-                            help='enable split mode (two OpenStack instances)')
+                            help='enable admin mode (create own project and user)')
     run_parser.add_argument('--manual',
                             action='store_true',
                             dest='manual_mode',
@@ -123,10 +125,6 @@ def cp_app():
                             action='store_true',
                             dest='reuse_mode',
                             help='enable reuse mode (run another test after completion, requires interactive)')
-    run_parser.add_argument('--yaml',
-                            action='store_true',
-                            dest='yaml_mode',
-                            help='results are yaml instead of json')
     run_parser.add_argument('--insecure',
                             action='store_false',
                             dest='verify',
@@ -254,19 +252,16 @@ def cp_app():
 
     # Run workload
     if args.workload == 'run':
-        # Load in configuration
-        config = configuration.Configuration(config_file=args.config_file,
-                                             output_file=args.output_file,
-                                             hostmap_file=args.hostmap_file,
-                                             flavor_file=args.flavor_file,
-                                             split_mode=args.split_mode)
+        # Verify results file format
+        if args.format not in ['yaml', 'json']:
+            raise CPError('Invalid format of results file. Must be yaml or json')
 
         # Split mode means there is two sets of environment and authentication
         env2 = None
-        if args.split_mode:
-            # A second RC file is required
-            if not args.openrc2_file:
-                raise CPError('Split mode is enabled but missing required credentials file for second instance')
+        split_mode = False
+        # Split mode is enabled if there is a second OpenRC file
+        if args.openrc2_file:
+            split_mode = True
             # If there is no second environment file, set it to the same as the first
             if not args.env2_file:
                 env2 = environment.Environment(args.env_file).get_config()
@@ -279,9 +274,16 @@ def cp_app():
             'env2': env2
         }
 
+        # Load in configuration
+        config = configuration.Configuration(config_file=args.config_file,
+                                             output_file=args.output_file,
+                                             hostmap_file=args.hostmap_file,
+                                             flavor_file=args.flavor_file,
+                                             split_mode=split_mode)
+
         # Create authentication dictionary with both env1 and env2
         creds_env2 = None
-        if args.split_mode:
+        if split_mode:
             creds_env2 = credentials.Credentials(openrc_file=args.openrc2_file,
                                                  password=args.password2,
                                                  no_env=True,
@@ -301,7 +303,7 @@ def cp_app():
                                       admin_mode=args.admin_mode,
                                       manual_mode=args.manual_mode,
                                       reuse_mode=args.reuse_mode,
-                                      yaml_mode=args.yaml_mode,
+                                      results_format=args.format,
                                       verify=args.verify)
         acc.run()
 

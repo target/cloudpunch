@@ -13,6 +13,8 @@ A list of notable changes will be documented here
 - The ping test now has time as an integer rather than a float to match other tests
 - The stress test now has time as the current time rather than duration
 - The jmeter test now has time as the current time rather than the test duration to match other tests
+- The run command now uses `-t FORMAT` instead of `--yaml`. Yaml is now the default option
+- The run command no longer has `--split`. Supplying a second OpenRC file will enable split mode
 
 ## 1.5.0 - 2017-08-16
 ### Added
