@@ -2,7 +2,6 @@ import random
 import logging
 import threading
 import sys
-import os
 import requests
 import json
 import yaml
@@ -16,7 +15,6 @@ from concurrent.futures import ThreadPoolExecutor
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from cloudpunch import cleanup
-from cloudpunch import configuration
 from cloudpunch.ostlib import osuser
 from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
@@ -28,14 +26,14 @@ from cloudpunch.ostlib import osswift
 class Accelerator(object):
 
     def __init__(self, config, creds, env, admin_mode=False, manual_mode=False,
-                 reuse_mode=False, results_format='yaml', verify=True):
+                 cloudpunch_id=None, results_format='yaml', verify=True):
         # Save all arguments
         self.config = config.get_config()
         self.creds = creds
         self.env = env
         self.admin_mode = admin_mode
         self.manual_mode = manual_mode
-        self.reuse_mode = reuse_mode
+        self.cloudpunch_id = cloudpunch_id
         self.results_format = results_format
         self.verify = verify
 
@@ -53,16 +51,10 @@ class Accelerator(object):
         self.sessions = {}
 
         # Stores external networks
-        self.ext_networks = {
-            'env1': None,
-            'env2': None
-        }
+        self.ext_networks = {}
 
         # Stores image ids (because we allow image names)
-        self.images = {
-            'env1': None,
-            'env2': None
-        }
+        self.images = {}
 
         # Resource lists. All resources created are saved in their respective list
         # These are mainly used when cleaning up resources
@@ -89,9 +81,6 @@ class Accelerator(object):
         self.master_ip = None
         self.master_url = None
 
-        # Increases when reuse mode runs another test
-        self.test_number = 1
-
         # Used when a flavor file is enabled
         self.current_flavor = 0
         self.current_percent = 0
@@ -111,11 +100,15 @@ class Accelerator(object):
             # Sends the configuration to the master and tells it to start the test
             # It calls post_results() to make it repeatable
             self.run_test()
-        except (CPError, oscompute.OSComputeError, osnetwork.OSNetworkError,
-                osuser.OSUserError, osvolume.OSVolumeError) as e:
+        except CPError as e:
+            if e.logtype == 'info':
+                logging.info(e.message)
+            else:
+                logging.error(e.message)
+        except (oscompute.OSComputeError, osnetwork.OSNetworkError,
+                osuser.OSUserError, osvolume.OSVolumeError,
+                osimage.OSImageError, osswift.OSSwiftError) as e:
             logging.error(e.message)
-        except CPStop as e:
-            logging.info(e.message)
         except KeyboardInterrupt:
             pass
         # except Exception as e:
@@ -821,7 +814,7 @@ class Accelerator(object):
 
         # Abort
         if recovery_type == 'a':
-            raise CPStop('Recovery mode is abort. Aborting')
+            raise CPError('Recovery mode is abort. Aborting', logtype='info')
 
         # Rebuild
         elif recovery_type == 'r':
@@ -995,72 +988,11 @@ class Accelerator(object):
         # Send to file if in configuration or send to stdout
         if 'output_file' in self.config:
             output_file = self.config['output_file']
-            # Add a number to tests that have repeated via reuse mode
-            if self.test_number > 1:
-                output_file = '%s-%s%s' % (os.path.splitext(os.path.basename(output_file))[0],
-                                           self.test_number,
-                                           os.path.splitext(os.path.basename(output_file))[1])
             logging.info('Saving test results to the file %s' % output_file)
             with open(output_file, 'w') as f:
                 f.write(results)
         else:
             logging.info('Results: \n%s' % results)
-
-        # Ask user to start another test if reuse_mode is enabled
-        if self.reuse_mode:
-            # User can enter the full word or just the first letter
-            regex = '^(s(ame)?|d(ifferent)?|a(bort)?)$'
-            newtest_type = raw_input('Enter new test type (same, different, abort) ')
-            match = re.search(regex, newtest_type)
-            while not match:
-                print('Not a valid new test type')
-                newtest_type = raw_input('Enter new test type (same, different, abort) ')
-                match = re.search(regex, newtest_type)
-            newtest_type = newtest_type[0]
-            # Same
-            if newtest_type == 's':
-                logging.info('Running the same test')
-                self.rerun_test()
-            # Different
-            elif newtest_type == 'd':
-                logging.info('Running a different test')
-                # Infinite loop to catch no input and invalid configuration files
-                while True:
-                    new_config = raw_input('Enter a new configuration file: ')
-                    if new_config:
-                        try:
-                            # Copy over the output file and hostmap file
-                            output_file = self.config['output_file'] if 'output_file' in self.config else None
-                            hostmap_file = self.config['hostmap_file'] if 'hostmap_file' in self.config else None
-                            config = configuration.Configuration(new_config, output_file, hostmap_file)
-                            self.config = config.get_config()
-                            break
-                        # Print out any configuration errors
-                        except configuration.ConfigError as e:
-                            print(e.message)
-                self.rerun_test()
-            # Abort
-            elif newtest_type == 'a':
-                logging.info('Not running another test')
-
-    def rerun_test(self):
-        # Tell master to restart the test
-        for num in range(self.config['retry_count']):
-            try:
-                request = requests.delete('%s/api/test/status' % self.master_url, timeout=3)
-                status = request.status_code
-            except requests.exceptions.RequestException:
-                status = 0
-            if status == 200:
-                logging.info('Signaled master to reset test')
-                self.test_number += 1
-                break
-            logging.info('Failed to signal master to reset test. Retry %s of %s',
-                         num + 1, self.config['retry_count'])
-            time.sleep(1)
-        if status != 200:
-            raise CPError('Failed to signal master to reset test. Aborting')
-        self.run_test()
 
     def cleanup(self):
         logging.info('Checking for resources to cleanup')
@@ -1077,21 +1009,19 @@ class Accelerator(object):
 
         for resource in self.resources:
             if resource == 'networks':
-                continue
+                roles = ['master', 'server', 'client']
+                if self.creds['env2']:
+                    roles = ['master', 'server'] if label == 'env1' else ['client']
+                for role in roles:
+                    if self.resources[resource][role]:
+                        if resource not in cleanup_data:
+                            cleanup_data[resource] = []
+                        for r in self.resources[resource][role]:
+                            cleanup_data[resource].append(r.get_id())
             elif self.resources[resource][label]:
                 cleanup_data[resource] = []
                 for r in self.resources[resource][label]:
                     cleanup_data[resource].append(r.get_id())
-
-        roles = ['master', 'server', 'client']
-        if self.creds['env2']:
-            roles = ['master', 'server'] if label == 'env1' else ['client']
-        for role in roles:
-            if self.resources['networks'][role]:
-                name = '%s-network' % role
-                cleanup_data[name] = []
-                for network in self.resources['networks'][role]:
-                    cleanup_data[name].append(network.get_id())
 
         if cleanup_data:
             # Add OpenStack API versions to cleanup data
@@ -1108,13 +1038,7 @@ class Accelerator(object):
 
 class CPError(Exception):
 
-    def __init__(self, message):
+    def __init__(self, message, logtype='error'):
         super(CPError, self).__init__(message)
         self.message = message
-
-
-class CPStop(Exception):
-
-    def __init__(self, message):
-        super(CPStop, self).__init__(message)
-        self.message = message
+        self.logtype = logtype

@@ -72,7 +72,7 @@ class Cleanup(object):
             # 'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
             # 'monitors', 'members', 'pool_vips', 'pools',
             'instances', 'volumes',
-            'floaters', 'routers', 'master-network', 'server-network', 'client-network',
+            'floaters', 'routers', 'networks',
             'keypairs', 'secgroups',
             'containers', 'users', 'projects'
         ]
@@ -125,16 +125,8 @@ class Cleanup(object):
                 'label': 'routers',
                 'object': osnetwork.Router(session, region, versions['neutron'])
             },
-            'master-network': {
-                'label': 'master networks',
-                'object': osnetwork.Network(session, region, versions['neutron'])
-            },
-            'server-network': {
-                'label': 'server networks',
-                'object': osnetwork.Network(session, region, versions['neutron'])
-            },
-            'client-network': {
-                'label': 'client networks',
+            'networks': {
+                'label': 'networks',
                 'object': osnetwork.Network(session, region, versions['neutron'])
             },
             'keypairs': {
@@ -159,56 +151,35 @@ class Cleanup(object):
             }
         }
 
-        network_list = resource_breakdown['master-network']['object'].list()
-        network_search = {
-            'master-network': 'master',
-            'server-network': '-s-',
-            'client-network': '-c-'
-        }
-
         for resource in search_order:
             resource_object = resource_breakdown[resource]['object']
             found_resources = []
             try:
-                if 'network' not in resource:
-                    resource_list = resource_object.list()
-                else:
-                    resource_list = network_list
+                resource_list = resource_object.list()
             # Used to catch forbidden responses from looking for users and projects
             except keystoneauth1.exceptions.http.Forbidden:
                 continue
-            for current_resource in resource_list:
-                # Find floating ip addresses on found instances
-                if resource == 'floaters':
-                    if 'instances' in resources:
-                        for instance in resources['instances']:
-                            ips = resource_breakdown['instances']['object'].list_ips(instance, include_networks=False)
-                            if ips['floating']:
-                                float_object = resource_breakdown['floaters']['object']
-                                found_resources.append(float_object.get_id(ips['floating'][0]))
-                                if self.names:
-                                    logging.info('Found %s %s (%s)',
-                                                 resource_breakdown[resource]['label'][:-1],
-                                                 float_object.get_id(ips['floating'][0]),
-                                                 ips['floating'][0])
-                # Network search
-                elif 'network' in resource:
-                    if ('cloudpunch' in current_resource['name'] and
-                            network_search[resource] in current_resource['name']):
+            # Find floating ip addresses on found instances
+            if resource == 'floaters':
+                if 'instances' in resources:
+                    for instance in resources['instances']:
+                        ips = resource_breakdown['instances']['object'].list_ips(instance, include_networks=False)
+                        if ips['floating']:
+                            float_object = resource_breakdown['floaters']['object']
+                            found_resources.append(float_object.get_id(ips['floating'][0]))
+                            if self.names:
+                                logging.info('Found floating ip address %s (%s)',
+                                             float_object.get_id(ips['floating'][0]),
+                                             ips['floating'][0])
+            else:
+                for current_resource in resource_list:
+                    if 'cloudpunch' in current_resource['name']:
                         found_resources.append(current_resource['id'])
                         if self.names:
                             logging.info('Found %s %s (%s)',
                                          resource_breakdown[resource]['label'][:-1],
                                          current_resource['id'],
                                          current_resource['name'])
-                # Everything else
-                elif 'cloudpunch' in current_resource['name']:
-                    found_resources.append(current_resource['id'])
-                    if self.names:
-                        logging.info('Found %s %s (%s)',
-                                     resource_breakdown[resource]['label'][:-1],
-                                     current_resource['id'],
-                                     current_resource['name'])
             logging.info('Found %s %s', len(found_resources), resource_breakdown[resource]['label'])
             if len(found_resources) > 0:
                 resources[resource] = found_resources
@@ -233,7 +204,7 @@ class Cleanup(object):
             'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
             'monitors', 'members', 'pool_vips', 'pools',
             'instances', 'volumes',
-            'floaters', 'routers', 'master-network', 'server-network', 'client-network',
+            'floaters', 'routers', 'networks',
             'keypairs', 'secgroups',
             'containers', 'users', 'projects'
         ]
@@ -286,16 +257,8 @@ class Cleanup(object):
                 'label': 'routers',
                 'object': osnetwork.Router(session, region, versions['neutron'])
             },
-            'master-network': {
-                'label': 'master networks',
-                'object': osnetwork.Network(session, region, versions['neutron'])
-            },
-            'server-network': {
-                'label': 'server networks',
-                'object': osnetwork.Network(session, region, versions['neutron'])
-            },
-            'client-network': {
-                'label': 'client networks',
+            'networks': {
+                'label': 'networks',
                 'object': osnetwork.Network(session, region, versions['neutron'])
             },
             'keypairs': {

@@ -6,8 +6,10 @@ A list of notable changes will be documented here
 - Take over existing resources
 - Add open source metrics
 - Add testing for swift
+- Added a new `-i` option for the run command. This allows connection to an existing master to rerun tests
 
 ### Changed
+- Fixed cloudpunch cleanup search looping through floating ip addresses multiple times
 - All official tests now have normalized settings and results. See documentation for specifics
 - All graphs now use datetime instead of the number of seconds for the X axis
 - The ping test now has time as an integer rather than a float to match other tests
@@ -15,6 +17,7 @@ A list of notable changes will be documented here
 - The jmeter test now has time as the current time rather than the test duration to match other tests
 - The run command now uses `-t FORMAT` instead of `--yaml`. Yaml is now the default option
 - The run command no longer has `--split`. Supplying a second OpenRC file will enable split mode
+- The run command no longer has `--reuse`. Use the new `-i` option as a replacement
 
 ## 1.5.0 - 2017-08-16
 ### Added

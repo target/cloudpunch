@@ -109,6 +109,12 @@ def cp_app():
                             dest='password2',
                             default=None,
                             help='password to login into second OpenStack environment')
+    run_parser.add_argument('-i',
+                            '--reuse',
+                            action='store',
+                            dest='cloudpunch_id',
+                            default=None,
+                            help='CloudPunch ID to connect to')
     run_parser.add_argument('--no-env',
                             action='store_true',
                             dest='no_env',
@@ -121,10 +127,6 @@ def cp_app():
                             action='store_true',
                             dest='manual_mode',
                             help='enable manual test start (requires interactive)')
-    run_parser.add_argument('--reuse',
-                            action='store_true',
-                            dest='reuse_mode',
-                            help='enable reuse mode (run another test after completion, requires interactive)')
     run_parser.add_argument('--insecure',
                             action='store_false',
                             dest='verify',
@@ -302,7 +304,7 @@ def cp_app():
         acc = accelerator.Accelerator(config, creds, env,
                                       admin_mode=args.admin_mode,
                                       manual_mode=args.manual_mode,
-                                      reuse_mode=args.reuse_mode,
+                                      cloudpunch_id=args.cloudpunch_id,
                                       results_format=args.format,
                                       verify=args.verify)
         acc.run()
