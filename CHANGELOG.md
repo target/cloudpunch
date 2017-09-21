@@ -9,6 +9,7 @@ A list of notable changes will be documented here
 - Added a new `-i` option for the run command. This allows connection to an existing master to rerun tests
 
 ### Changed
+- Redis is no longer a requirement on the master server
 - Fixed cloudpunch cleanup search looping through floating ip addresses multiple times
 - All official tests now have normalized settings and results. See documentation for specifics
 - All graphs now use datetime instead of the number of seconds for the X axis

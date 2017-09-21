@@ -210,7 +210,6 @@ master:
   flavor: m1.small
   availability_zone:
   userdata:
-    - systemctl start redis.service
 server:
   flavor: m1.small
   availability_zone:
@@ -282,6 +281,8 @@ dns_nameservers:
 shared_userdata:
   - mkdir -p /opt/cloudpunch
   - git clone https://github.com/target/cloudpunch.git /opt/cloudpunch
+  - cd /opt/cloudpunch
+  - python setup.py install
 external_network:
 ```
 

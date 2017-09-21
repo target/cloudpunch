@@ -1,9 +1,17 @@
 import json
-import redis
+import copy
 
 from flask import Flask, abort, request
 
+CONFIG = {}
+RESULTS = []
+INSTANCES = []
+SERVERS = []
+CLIENTS = []
+RUNNING = []
+MATCHED = False
 app = Flask(__name__)
+app.config.from_object(__name__)
 
 
 @app.errorhandler(400)
@@ -27,9 +35,7 @@ def get_syshealth():
 @app.route('/api/register', methods=['GET'])
 def get_registered():
     # Returns a list of instances that have registered
-    r_server = redis.Redis('localhost')
-    data = r_server.get('instances')
-    instances = json.loads(data) if data else []
+    instances = app.config['INSTANCES']
     response = {
         'count': len(instances),
         'instances': instances
@@ -61,19 +67,14 @@ def register_server():
         'external_ip': external_ip,
         'role': role
     }
-    r_server = redis.Redis('localhost')
-    instances = r_server.get('instances')
-    data = json.loads(instances) if instances else []
-    data.append(instance)
-    r_server.set('instances', json.dumps(data))
+    app.config['INSTANCES'].append(instance)
     return json.dumps({'status': 'registered'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
     # Returns the saved configuration received from local machine
-    r_server = redis.Redis('localhost')
-    config = r_server.get('config')
+    config = app.config['CONFIG']
     response = config if config else json.dumps({})
     return response, 200, {'Content-Type': 'text/json; charset=utf-8'}
 
@@ -85,8 +86,7 @@ def give_config():
     # Loads in the configuration dictionary from the local machine
     if not request.json:
         abort(400, 'Missing configuration')
-    r_server = redis.Redis('localhost')
-    r_server.set('config', json.dumps(request.json))
+    app.config['CONFIG'] = request.json
     return json.dumps({'status': 'saved'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
@@ -135,10 +135,9 @@ def get_instance_num(config, instance_name):
 @app.route('/api/test/match', methods=['GET'])
 def match_servers():
     # Matches server and client instances based on their instance number (they equal each other)
-    r_server = redis.Redis('localhost')
-    config = json.loads(r_server.get('config'))
-    if not r_server.get('servers'):
-        instances = json.loads(r_server.get('instances'))
+    config = app.config['CONFIG']
+    if not app.config['SERVERS']:
+        instances = app.config['INSTANCES']
         # Premake the lists
         # This allows setting values everywhere
         if config['server_client_mode']:
@@ -153,9 +152,9 @@ def match_servers():
                 servers[inst_num - 1] = instance
             elif instance['role'] == 'client':
                 clients[inst_num - 1] = instance
-        r_server.set('servers', json.dumps(servers))
-        r_server.set('clients', json.dumps(clients))
-    r_server.set('matched', json.dumps({'status': True}))
+        app.config['SERVERS'] = servers
+        app.config['CLIENTS'] = clients
+    app.config['MATCHED'] = True
     return json.dumps({'status': 'matched'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
@@ -172,22 +171,17 @@ def test_status():
     hostname = request.json.get('hostname')
     if not hostname:
         abort(400, 'Missing hostname')
-    r_server = redis.Redis('localhost')
-    matched_status = r_server.get('matched')
-    if matched_status:
+    if app.config['MATCHED']:
         # A list of servers that have asked to start the test
         # This list is reset when restarting the test
-        running = r_server.get('running')
-        running_servers = json.loads(running) if running else []
         # Tell the server to hold because it has asked once before reset
-        if hostname in running_servers:
+        if hostname in app.config['RUNNING']:
             response = {'status': 'hold'}
         # Tell the server to start the test
         else:
             response = {'status': 'go'}
             # Add to currently running servers
-            running_servers.append(hostname)
-            r_server.set('running', json.dumps(running_servers))
+            app.config['RUNNING'].append(hostname)
     else:
         response = {'status': 'hold'}
     return json.dumps(response), 200, {'Content-Type': 'text/json; charset=utf-8'}
@@ -196,9 +190,8 @@ def test_status():
 @app.route('/api/test/status', methods=['DELETE'])
 def delete_status():
     # Reset test information
-    r_server = redis.Redis('localhost')
-    r_server.delete('running')
-    r_server.delete('results')
+    app.config['RUNNING'] = []
+    app.config['RESULTS'] = []
     return json.dumps({'status': 'deleted'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
@@ -249,15 +242,11 @@ def test_run():
     if not request.json:
         abort(400, 'Missing required data')
     hostname = request.json.get('hostname')
-    role = get_role(hostname)
     if not hostname:
         abort(400, 'Missing hostname')
-    r_server = redis.Redis('localhost')
-    # Load configuration
-    data = r_server.get('config')
-    if data:
-        config = json.loads(data)
-    else:
+    role = get_role(hostname)
+    config = copy.deepcopy(app.config['CONFIG'])
+    if not config:
         abort(404, 'No configuration exists')
     # Match up loadbalancers IP addresses based on the network an instance is on
     if 'loadbalancers' in config:
@@ -269,8 +258,8 @@ def test_run():
     # Matched instances share the same index number
     # network_mode full gives floating IP addresses, single-router and single-network give internal IP addresses
     if 'match_ip' not in config and config['server_client_mode']:
-        servers = json.loads(r_server.get('servers'))
-        clients = json.loads(r_server.get('clients'))
+        servers = app.config['SERVERS']
+        clients = app.config['CLIENTS']
         wanted_ip = 'internal_ip'
         if config['network_mode'] == 'full':
             wanted_ip = 'external_ip'
@@ -292,10 +281,7 @@ def test_run():
 @app.route('/api/test/results', methods=['GET'])
 def test_results():
     # Return the test results
-    r_server = redis.Redis('localhost')
-    all_results = r_server.get('results')
-    response = all_results if all_results else json.dumps([])
-    return response, 200, {'Content-Type': 'text/json; charset=utf-8'}
+    return json.dumps(app.config['RESULTS']), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
 # {
@@ -313,15 +299,9 @@ def give_results():
     results = request.json.get('results')
     if not hostname or not results:
         abort(400, 'Missing hostname and result data')
-    r_server = redis.Redis('localhost')
-    all_results = r_server.get('results')
-    data = json.loads(all_results) if all_results else []
-    data.append({'hostname': hostname, 'results': results})
-    r_server.set('results', json.dumps(data))
+    app.config['RESULTS'].append({'hostname': hostname, 'results': results})
     return json.dumps({'status': 'saved'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 
 
 def run(host, port, debug):
-    app.run(host=host,
-            port=int(port),
-            debug=debug)
+    app.run(host=host, port=int(port), debug=debug)

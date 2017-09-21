@@ -34,9 +34,7 @@ The local machine handles staging everything on OpenStack. It also handles clean
 
 ##### Master
 
-The master is just a flask instance hosting a web API. It uses Redis for storage of instances and configuration. The master is the gateway between external and internal OpenStack. The local machine and slaves only talk to the master, never to each other.
-
-![Master (OpenStack)](images/master-instance.png "CloudPunch Master")
+The master is just a flask instance hosting a web API. The master is the gateway between external and internal OpenStack. The local machine and slaves only talk to the master, never to each other.
 
 ##### Slave
 

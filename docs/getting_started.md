@@ -21,8 +21,8 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Master (OpenStack image)
     - Python 2.7
-    - PIP: flask, redis, requests
-    - Packages: redis
+    - PIP: flask, requests
+    - Packages: none
 
 
 - Slave (OpenStack image)
@@ -49,21 +49,16 @@ The OpenStack image used should contain all required software for the best stagi
     - python-swiftclient - handles interaction with OpenStack swift
     - plotly - graphs over time results
     - flask - runs master server's API
-    - redis - handles interaction with local redis server on the master server
     - requests - handles API calls to master server
     - xmltodict - modifies the jmeter XML file
     - gunicorn - runs as a web server for jmeter tests
     - kafka-python - sends test metrics to Kafka
 
-
-- Packages
-    - redis - stores instance and configuration data
-
 ## CloudPunch Installation
 
 ~~[PIP Installation](./getting_started_pip.md) (recommended)~~
 
-~~[Docker Installation](./getting_started_docker.md) (ready-to-go container)~~
+[Docker Installation](./getting_started_docker.md) (ready-to-go container)
 
 [Git Installation](./getting_started_git.md) (for development, currently only Installation method)
 
@@ -149,10 +144,7 @@ sudo yum update -y
 curl -O https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 sudo yum install epel-release-latest-7.noarch.rpm
 sudo yum-config-manager --enable epel
-sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel redis libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio jq
-
-# Start services
-sudo systemctl enable redis
+sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio jq
 
 # Install jmeter
 sudo yum install -y java-1.8.0-openjdk

@@ -9,13 +9,13 @@ See Docker documentation found [here](https://docs.docker.com/)
 #### 2. Pull Latest Docker Image
 
 ```
-docker pull <insert image name here>
+docker pull target/cloudpunch
 ```
 
 #### 3. Run Docker Image
 
 ```
-docker run -v $PWD:/opt/cloudpunch --rm -it <insert image name here> bash
+docker run -v $PWD:/opt/cloudpunch --rm -it target/cloudpunch
 ```
 
 #### 4. Verify Installation

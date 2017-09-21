@@ -24,9 +24,7 @@ class Environment(object):
             'master': {
                 'flavor': 'm1.small',
                 'availability_zone': '',
-                'userdata': [
-                    "systemctl start redis.service"
-                ]
+                'userdata': []
             },
             'server': {
                 'flavor': 'm1.small',
