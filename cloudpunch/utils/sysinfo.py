@@ -3,12 +3,11 @@ import os
 
 def hostname():
     hostname = os.popen('hostname').read()
-    return hostname.rstrip().lower()
+    return hostname.rstrip().lower().split('.')[0]
 
 
 def role():
     name = hostname()
-    name = name.split('.')[0]
     name_split = name.split('-')
     if name_split[2] == 'master':
         if name_split[3][0] == 's':
