@@ -146,10 +146,11 @@ class Accelerator(object):
                                   self.env[label]['api_versions']['glance'])
             try:
                 # If image_name is a UUID
-                self.images[label] = image.get_name(self.env[label]['image_name'])
+                image.get_name(self.env[label]['image_name'])
+                self.images[label] = self.env[label]['image_name']
             except glanceclient.exc.HTTPNotFound:
                 # If image_name is a name
-                self.images[label] = image.get_id(self.env[label]['image_name'])
+                self.images[label] = image.get_id(self.env[label]['image_name'], include_public=True)
             logging.info('Booting instances using image %s with ID %s',
                          image.get_name(self.images[label]), self.images[label])
             # When split mode is enabled env1 contains the master and servers, env2 contains the clients

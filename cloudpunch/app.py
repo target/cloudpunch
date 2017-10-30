@@ -79,7 +79,7 @@ def cp_app():
                             dest='hostmap_file',
                             default=None,
                             help='file containg a hostmap to control instance location')
-    run_parser.add_argument('-f',
+    run_parser.add_argument('-b',
                             '--flavor',
                             action='store',
                             dest='flavor_file',
@@ -91,7 +91,7 @@ def cp_app():
                             dest='output_file',
                             default=None,
                             help='file to save results to (default: stdout)')
-    run_parser.add_argument('-t',
+    run_parser.add_argument('-f',
                             '--format',
                             action='store',
                             dest='format',

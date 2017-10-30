@@ -1,14 +1,24 @@
 import json
 import copy
+import logging
+import sys
+import traceback
 
 from flask import Flask, abort, request
 
+# Test configuration
 CONFIG = {}
+# Results from slaves
 RESULTS = []
+# List of all OpenStack slave instances
 INSTANCES = []
+# List of all slaves with the role server
 SERVERS = []
+# List of all slaves with the role client
 CLIENTS = []
+# Currently running slaves
 RUNNING = []
+# Signals the start of the test
 MATCHED = False
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -24,6 +34,17 @@ def bad_request(error):
 def not_found(error):
     # Handles 404 errors
     return json.dumps({'error': error.description}), 404, {'Content-Type': 'text/json; charset=utf-8'}
+
+
+@app.errorhandler(500)
+def server_error(error):
+    type_, value_, traceback_ = sys.exc_info()
+    logging.error('Exception raised...')
+    for line in traceback.format_tb(traceback_):
+        logging.error(line.strip())
+    logging.error('%s: %s' % (type_.__name__, value_))
+    message = json.dumps({'error': '%s: %s' % (type(error).__name__, error.message)})
+    return message, 500, {'Content-Type': 'text/json; charset=utf-8'}
 
 
 @app.route('/api/system/health', methods=['GET'])

@@ -69,9 +69,10 @@ class Image(BaseImage):
         for image in images:
             if image.visibility == 'public' and not include_public:
                 continue
-            if not all_projects and project_id and image.owner != project_id:
+            if not include_public and not all_projects and project_id and image.owner != project_id:
                 continue
-            if not all_projects and not project_id and image.owner != self.session.get_project_id():
+            if (not include_public and not all_projects and
+                    not project_id and image.owner != self.session.get_project_id()):
                 continue
             image_info.append({
                 'id': image.id,
