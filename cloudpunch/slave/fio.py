@@ -7,6 +7,7 @@ import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
 
+# Complete names are generated during send
 METRIC_NAME = 'cloudpunch.fio'
 
 
@@ -68,52 +69,57 @@ class CloudPunchTest(Thread):
             data = json.loads(line)
             for job in data['jobs']:
                 jobname = job['jobname']
-                if not self.config['overtime_results']:
-                    if jobname not in results:
-                        # Setup default dictionary for each job
-                        results[jobname] = {}
-                        for label in ['read', 'write']:
-                            results[jobname][label] = {}
-                            for label2 in ['bytes', 'bw', 'lat', 'iops']:
-                                results[jobname][label][label2] = []
+                if jobname not in self.final_results:
+                    self.final_results[jobname] = {}
                     for label in ['read', 'write']:
-                        # Job hasn't run yet
-                        if job[label]['io_bytes'] == 0:
+                        self.final_results[jobname][label] = []
+                for label in ['read', 'write']:
+                    # Job hasn't run yet
+                    if job[label]['io_bytes'] == 0:
+                        continue
+                    # Job has completed
+                    if 'bytes' in self.final_results[jobname][label][-1]:
+                        last_bytes = self.final_results[jobname][label][-1]['bytes'] / 1000
+                        if job[label]['io_bytes'] == last_bytes:
                             continue
-                        # Job has completed
-                        if job[label]['io_bytes'] == results[jobname][label]['bytes']:
-                            continue
-                        results[jobname][label]['bytes'] = job[label]['io_bytes'] * 1000
-                        results[jobname][label]['bw'].append(job[label]['bw'] * 1000)
-                        results[jobname][label]['lat'].append(job[label]['lat']['mean'] / 1000)
-                        results[jobname][label]['iops'].append(job[label]['iops'])
-                else:
-                    if jobname not in self.final_results:
-                        self.final_results[jobname] = {}
-                        for label in ['read', 'write']:
-                            self.final_results[jobname][label] = []
-                    for label in ['read', 'write']:
-                        self.final_results[jobname][label].append({
-                            'time': data['timestamp'],
-                            'bytes': job[label]['io_bytes'] * 1000,
-                            'bandwidth': job[label]['bw'] * 1000,
-                            'latency': job[label]['lat']['mean'] / 1000,
-                            'iops': job[label]['iops']
-                        })
+
+                    now = data['timestamp']
+                    total_bytes = job[label]['io_bytes'] * 1000  # convert from kb to b
+                    bandwidth = job[label]['bw'] * 1000  # convert from kbps to bps
+                    latency = job[label]['lat']['mean'] / 1000  # convert from micro to milli seconds
+                    iops = job[label]['iops']
+
+                    self.final_results[jobname][label].append({
+                        'time': now,
+                        'bytes': total_bytes,
+                        'bandwidth': bandwidth,
+                        'latency': latency,
+                        'iops': iops
+                    })
+                    if self.config['metrics']['enable']:
+                        extra_tags = {'job': jobname}
+                        self.metric.send_metric('%s.%s.bytes' % (METRIC_NAME, label), total_bytes, now, extra_tags)
+                        self.metric.send_metric('%s.%s.bandwidth' % (METRIC_NAME, label), bandwidth, now, extra_tags)
+                        self.metric.send_metric('%s.%s.latency' % (METRIC_NAME, label), latency, now, extra_tags)
+                        self.metric.send_metric('%s.%s.iops' % (METRIC_NAME, label), iops, now, extra_tags)
 
         popen.stdout.close()
 
+        # Send back summary if not over time
         if not self.config['overtime_results']:
             for jobname in results:
-                self.final_results[jobname] = {}
                 for label in ['read', 'write']:
+                    total_bytes = [d['bytes'] for d in self.final_results[jobname][label]]
+                    bandwidth = [d['bandwidth'] for d in self.final_results[jobname][label]]
+                    latency = [d['latency'] for d in self.final_results[jobname][label]]
+                    iops = [d['iops'] for d in self.final_results[jobname][label]]
                     try:
                         # Exception will happen if results were 0 (possibly because a 0% read/write)
                         self.final_results[jobname][label] = {
-                            'bytes': results[jobname][label]['bytes'],
-                            'bandwidth': sum(results[jobname][label]['bw']) / len(results[jobname][label]['bw']),
-                            'latency': sum(results[jobname][label]['lat']) / len(results[jobname][label]['lat']),
-                            'iops': sum(results[jobname][label]['iops']) / len(results[jobname][label]['iops'])
+                            'bytes': total_bytes[-1],
+                            'bandwidth': sum(bandwidth) / len(bandwidth),
+                            'latency': sum(latency) / len(latency),
+                            'iops': sum(iops) / len(iops)
                         }
                     except ZeroDivisionError:
                         self.final_results[jobname][label] = {

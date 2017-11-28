@@ -386,7 +386,7 @@ class Post(object):
                             process_test = self.fiojob
                         else:
                             valid_options = ', '.join(fio_tests)
-                            raise PostExcept('Results have multiple fio jobs (%s), supply one with -t' % valid_options)
+                            raise PostExcept('Results have multiple fio jobs (%s), supply one with -j' % valid_options)
                         for io_type in ['read', 'write']:
                             # process x axis
                             for time in results[test][server][process_test][io_type]['time']:

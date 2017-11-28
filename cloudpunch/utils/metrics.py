@@ -14,7 +14,7 @@ class Metrics(object):
         logging.debug('Connecting to Kafka server(s): %s', ', '.join(self.config['brokers']))
         self.producer = KafkaProducer(bootstrap_servers=self.config['brokers'])
 
-    def send_metric(self, name, value, timestamp=None):
+    def send_metric(self, name, value, timestamp=None, extra_tags={}):
         tags = {
             'app': 'cloudpunch',
             'testnumber': sysinfo.testnum()
@@ -22,6 +22,7 @@ class Metrics(object):
         fields = {
             'value': value
         }
+        tags = cpc.merge_configs(tags, extra_tags)
         tags = cpc.merge_configs(tags, self.config['tags'])
         self.send(name, tags, fields, timestamp)
 
