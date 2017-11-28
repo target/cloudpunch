@@ -37,7 +37,9 @@ class Configuration(object):
             'metrics': {
                 'enable': False,
                 'topic': '',
-                'brokers': []
+                'brokers': [],
+                'format': 'influxdb',
+                'tags': {}
             }
         }
         read_config = {}
@@ -156,9 +158,11 @@ class Configuration(object):
         # Check metrics
         if self.final_config['metrics']['enable']:
             if not self.final_config['metrics']['topic']:
-                raise ConfigError('Missing metrics topic')
+                raise ConfigError('Missing metrics Kafka topic')
             if not self.final_config['metrics']['brokers']:
-                raise ConfigError('Missing metrics brokers')
+                raise ConfigError('Missing metrics Kafka brokers')
+            if self.final_config['metrics']['format'] != 'influxdb':
+                raise ConfigError('The only supported metrics format is influxdb')
 
         # Network and environment number checks
         if self.final_config['network_mode'] not in ['full', 'single-router', 'single-network']:

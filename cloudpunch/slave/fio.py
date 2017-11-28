@@ -3,8 +3,11 @@ import subprocess
 import json
 
 import cloudpunch.utils.config as cpc
+import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
+
+METRIC_NAME = 'cloudpunch.fio'
 
 
 class CloudPunchTest(Thread):
@@ -12,6 +15,8 @@ class CloudPunchTest(Thread):
     def __init__(self, config):
         self.config = config
         self.final_results = {}
+        if self.config['metrics']['enable']:
+            self.metric = metrics.Metrics(self.config['metrics'])
         super(CloudPunchTest, self).__init__()
 
     def run(self):
@@ -84,6 +89,7 @@ class CloudPunchTest(Thread):
                         results[jobname][label]['iops'].append(job[label]['iops'])
                 else:
                     if jobname not in self.final_results:
+                        self.final_results[jobname] = {}
                         for label in ['read', 'write']:
                             self.final_results[jobname][label] = []
                     for label in ['read', 'write']:

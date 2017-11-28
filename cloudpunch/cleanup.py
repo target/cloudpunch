@@ -74,7 +74,7 @@ class Cleanup(object):
             'instances', 'volumes',
             'floaters', 'routers', 'networks',
             'keypairs', 'secgroups',
-            'containers', 'users', 'projects'
+            'containers',
         ]
         resource_breakdown = {
             'lbaas_monitors': {
@@ -140,14 +140,6 @@ class Cleanup(object):
             'containers': {
                 'label': 'swift containers',
                 'object': osswift.Container(session, self.creds.get_cacert(), not self.verify)
-            },
-            'users': {
-                'label': 'users',
-                'object': osuser.User(session, region, versions['keystone'])
-            },
-            'projects': {
-                'label': 'projects',
-                'object': osuser.Project(session, region, versions['keystone'])
             }
         }
 
@@ -206,7 +198,7 @@ class Cleanup(object):
             'instances', 'volumes',
             'floaters', 'routers', 'networks',
             'keypairs', 'secgroups',
-            'containers', 'users', 'projects'
+            'containers'
         ]
         resource_breakdown = {
             'lbaas_monitors': {
@@ -272,14 +264,6 @@ class Cleanup(object):
             'containers': {
                 'label': 'swift containers',
                 'object': osswift.Container(session, self.creds.get_cacert(), not self.verify)
-            },
-            'users': {
-                'label': 'users',
-                'object': osuser.User(session, region, versions['keystone'])
-            },
-            'projects': {
-                'label': 'projects',
-                'object': osuser.Project(session, region, versions['keystone'])
             }
         }
 

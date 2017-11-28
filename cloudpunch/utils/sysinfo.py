@@ -6,6 +6,10 @@ def hostname():
     return hostname.rstrip().lower().split('.')[0]
 
 
+def testnum():
+    return hostname().split('-')[1]
+
+
 def role():
     name = hostname()
     name_split = name.split('-')

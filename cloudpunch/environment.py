@@ -106,7 +106,9 @@ class Environment(object):
             },
             'secgroup_rules': [
                 ['icmp', -1, -1],
-                ['tcp', 80, 80]
+                ['tcp', 22, 22],
+                ['tcp', 80, 80],
+                ['tcp', 5201, 5201]
             ],
             'dns_nameservers': [
                 '8.8.8.8',

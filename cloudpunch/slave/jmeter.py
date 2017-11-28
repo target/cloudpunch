@@ -5,6 +5,7 @@ import logging
 import time
 
 import cloudpunch.utils.config as cpc
+import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
 
@@ -12,12 +13,20 @@ SLAVE_PATH = os.path.dirname(os.path.realpath(__file__))
 ORIGINAL_JMETER_FILE = '%s/jmeter-test.jmx' % SLAVE_PATH
 NEW_JMETER_FILE = '%s/generated-jmeter-test.jmx' % SLAVE_PATH
 
+METRIC_NAME = 'cloudpunch.jmeter'
+RPS_METRIC = '%s.rps' % METRIC_NAME
+LATENCY_METRIC = '%s.latency' % METRIC_NAME
+ECOUNT_METRIC = '%s.ecount' % METRIC_NAME
+EPERCENT_METRIC = '%s.epercent' % METRIC_NAME
+
 
 class CloudPunchTest(Thread):
 
     def __init__(self, config):
         self.config = config
         self.final_results = []
+        if self.config['metrics']['enable']:
+            self.metric = metrics.Metrics(self.config['metrics'])
         super(CloudPunchTest, self).__init__()
 
     def run(self):
@@ -55,7 +64,7 @@ class CloudPunchTest(Thread):
             self.final_results = 'ServerMode'
 
         # Start jmeter
-        elif self.config['role'] == 'client' or not self.config['server_client_mode']:
+        else:
             if self.config['server_client_mode']:
                 server_ip = self.config['match_ip']
             elif 'target' in self.config['jmeter']:
@@ -66,35 +75,52 @@ class CloudPunchTest(Thread):
 
             # Wait 5 seconds for the server to start
             time.sleep(5)
+
             jmeter_command = 'jmeter -n -t %s' % (NEW_JMETER_FILE)
             logging.info('Running the jmeter command: %s', jmeter_command)
             popen = subprocess.Popen(jmeter_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
             for line in iter(popen.stdout.readline, b''):
                 line = line.strip()
-                now = int(time.time())
-                if line.count('=') != 2 and not self.config['overtime_results']:
+                if '+' not in line:
                     continue
-                if '+' not in line and self.config['overtime_results']:
-                    continue
+                # Remove excess white spaces
                 line = ' '.join(line.split()).split()
-                if self.config['overtime_results']:
-                    self.final_results.append({
-                        'time': now,
-                        'rps': float(line[6][:-2]),
-                        'latency': int(line[8]),
-                        'ecount': int(line[14]),
-                        'epercent': float(filter(lambda x: x not in '()%', line[15]))
-                    })
-                else:
-                    self.final_results = {
-                        'rps': float(line[6][:-2]),
-                        'latency': int(line[8]),
-                        'ecount': int(line[14]),
-                        'epercent': float(filter(lambda x: x not in '()%', line[15]))
-                    }
+
+                now = int(time.time())
+                rps = float(line[6][:-2])
+                latency = int(line[8])
+                ecount = int(line[14])
+                epercent = float(filter(lambda x: x not in '()%', line[15]))
+
+                self.final_results.append({
+                    'time': now,
+                    'rps': rps,
+                    'latency': latency,
+                    'ecount': ecount,
+                    'epercent': epercent
+                })
+
+                if self.config['metrics']['enable']:
+                    self.metric.send_metric(RPS_METRIC, rps, now)
+                    self.metric.send_metric(LATENCY_METRIC, latency, now)
+                    self.metric.send_metric(ECOUNT_METRIC, ecount, now)
+                    self.metric.send_metric(EPERCENT_METRIC, epercent, now)
 
             popen.stdout.close()
+
+            # Send back summary if not over time
+            if not self.config['overtime_results']:
+                rps = [d['rps'] for d in self.final_results]
+                latency = [d['latency'] for d in self.final_results]
+                ecount = [d['ecount'] for d in self.final_results]
+                epercent = [d['epercent'] for d in self.final_results]
+                self.final_results = {
+                    'rps': sum(rps) / len(rps),
+                    'latency': sum(latency) / len(latency),
+                    'ecount': sum(ecount) / len(ecount),
+                    'epercent': sum(epercent) / len(epercent)
+                }
 
     def write_jmeter_config(self, jconfig, target):
         with open(ORIGINAL_JMETER_FILE, 'r') as f:

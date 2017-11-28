@@ -4,8 +4,13 @@ import random
 import time
 
 import cloudpunch.utils.config as cpc
+import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
+
+METRIC_NAME = 'cloudpunch.stress'
+CORE_METRIC = '%s.cores' % METRIC_NAME
+LOAD_METRIC = '%s.load' % METRIC_NAME
 
 
 class CloudPunchTest(Thread):
@@ -13,6 +18,8 @@ class CloudPunchTest(Thread):
     def __init__(self, config):
         self.config = config
         self.final_results = []
+        if self.config['metrics']['enable']:
+            self.metric = metrics.Metrics(self.config['metrics'])
         super(CloudPunchTest, self).__init__()
 
     def run(self):
@@ -39,28 +46,22 @@ class CloudPunchTest(Thread):
 
     def runtest(self):
         for i in range(self.config['stress']['iterations']):
-            logging.info('Running iteration %s of %s', i, self.config['stress']['iterations'])
+            logging.info('Running iteration %s of %s', i + 1, self.config['stress']['iterations'])
 
             # Generate random numbers based on min/max configuration
             cores = random.randint(self.config['stress']['cores_min'], self.config['stress']['cores_max'])
             duration = random.randint(self.config['stress']['duration_min'], self.config['stress']['duration_max'])
             load = random.randint(self.config['stress']['load_min'], self.config['stress']['load_max'])
 
-            results = {
-                'cores': [],
-                'load': []
-            }
-            # Over time results
-            if self.config['overtime_results']:
-                self.final_results.append({
-                    'cores': cores,
-                    'time': int(time.time()),
-                    'load': load
-                })
-            # Summary results
-            else:
-                results['cores'].append(cores)
-                results['load'].append(load)
+            now = int(time.time())
+            self.final_results.append({
+                'cores': cores,
+                'time': now,
+                'load': load
+            })
+            if self.config['metrics']['enable']:
+                self.metric.send_metric(CORE_METRIC, cores, now)
+                self.metric.send_metric(LOAD_METRIC, load, now)
 
             command = 'nice -n %s stress-ng --cpu %s --timeout %ss --cpu-load %s' % (self.config['stress']['nice'],
                                                                                      cores,
@@ -74,20 +75,9 @@ class CloudPunchTest(Thread):
 
         # Send back summary if not over time
         if not self.config['overtime_results']:
-            try:
-                self.final_results = {
-                    'cores': sum(results['cores']) / len(results['cores']),
-                    'load': sum(results['load']) / len(results['load'])
-                }
-            except ZeroDivisionError:
-                self.final_results = {
-                    'cores': -1,
-                    'load': -1
-                }
-
-
-class ConfigError(Exception):
-
-    def __init__(self, message):
-        super(ConfigError, self).__init__(message)
-        self.message = message
+            cores = [d['cores'] for d in self.final_results]
+            load = [d['load'] for d in self.final_results]
+            self.final_results = {
+                'cores': sum(cores) / len(cores),
+                'load': sum(load) / len(load)
+            }

@@ -119,10 +119,6 @@ def cp_app():
                             action='store_true',
                             dest='no_env',
                             help='do not use environment for authentication')
-    run_parser.add_argument('--admin',
-                            action='store_true',
-                            dest='admin_mode',
-                            help='enable admin mode (create own project and user)')
     run_parser.add_argument('--manual',
                             action='store_true',
                             dest='manual_mode',
@@ -289,20 +285,17 @@ def cp_app():
             creds_env2 = credentials.Credentials(openrc_file=args.openrc2_file,
                                                  password=args.password2,
                                                  no_env=True,
-                                                 interactive=True,
-                                                 use_admin=args.admin_mode)
+                                                 interactive=True)
         creds = {
             'env1': credentials.Credentials(openrc_file=args.openrc_file,
                                             password=args.password,
                                             no_env=args.no_env,
-                                            interactive=True,
-                                            use_admin=args.admin_mode),
+                                            interactive=True),
             'env2': creds_env2
         }
 
         # Create accelerator object and run it
         acc = accelerator.Accelerator(config, creds, env,
-                                      admin_mode=args.admin_mode,
                                       manual_mode=args.manual_mode,
                                       cloudpunch_id=args.cloudpunch_id,
                                       results_format=args.format,

@@ -5,8 +5,13 @@ import json
 import random
 
 import cloudpunch.utils.config as cpc
+import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
+
+METRIC_NAME = 'cloudpunch.iperf'
+BPS_METRIC = '%s.bps' % METRIC_NAME
+RETRAN_METRIC = '%s.retransmits' % METRIC_NAME
 
 
 class CloudPunchTest(Thread):
@@ -14,6 +19,8 @@ class CloudPunchTest(Thread):
     def __init__(self, config):
         self.config = config
         self.final_results = []
+        if self.config['metrics']['enable']:
+            self.metric = metrics.Metrics(self.config['metrics'])
         super(CloudPunchTest, self).__init__()
 
     def run(self):
@@ -45,21 +52,17 @@ class CloudPunchTest(Thread):
             os.popen('iperf3 -s -D')
 
         # Start iperf in client mode
-        elif self.config['role'] == 'client' or not self.config['server_client_mode']:
+        else:
             if self.config['server_client_mode']:
                 server_ip = self.config['match_ip']
             elif 'target' in self.config['iperf']:
                 server_ip = self.config['iperf']['target']
             else:
-                raise ConfigError('Missing iperf target server')
+                raise ConfigError('iPerf is running client mode but is missing a target server')
+
             logging.info('Starting iperf process in client mode connecting to %s', server_ip)
             # Wait 5 seconds to make sure iPerf servers have time to start
             time.sleep(5)
-            if not self.config['overtime_results']:
-                self.results = {
-                    'bps': [],
-                    'retransmits': []
-                }
 
             # Check for and initialize iperf perams
             for i in range(self.config['iperf']['iterations']):
@@ -71,19 +74,21 @@ class CloudPunchTest(Thread):
                 # Max throughput
                 if self.config['iperf']['max_throughput']:
                     command = 'iperf3 -c %s -i 1 -t %s -P %s -J -M %s' % (server_ip, duration, threads, mss)
-                    self.run_iperf(command)
 
                 # Variable throughput
                 else:
                     bps = random.randint(self.config['iperf']['bps_min'], self.config['iperf']['bps_max'])
                     command = 'iperf3 -c %s -i 1 -t %s -b %sM -P %s -J -M %s' % (server_ip, duration, bps, threads, mss)
-                    self.run_iperf(command)
 
-            # Average out results if we don't want overtime results
+                self.run_iperf(command)
+
+            # Send back summary if not over time
             if not self.config['overtime_results']:
+                bps = [d['bps'] for d in self.final_results]
+                retransmits = [d['retransmits'] for d in self.final_results]
                 self.final_results = {
-                    'bps': sum(self.results['bps']) / len(self.results['bps']),
-                    'retransmits': sum(self.results['retransmits']) / len(self.results['retransmits'])
+                    'bps': sum(bps) / len(bps),
+                    'retransmits': sum(retransmits) / len(retransmits)
                 }
 
     def run_iperf(self, command):
@@ -94,19 +99,19 @@ class CloudPunchTest(Thread):
         # Remove tabs
         results = results.replace('\t', '')
         results = json.loads(results)
-        if self.config['overtime_results']:
-            time_stamp = results['start']['timestamp']['timesecs']
-            for i in results['intervals']:
-                self.final_results.append({
-                    'time': time_stamp,
-                    'bps': i['sum']['bits_per_second'],
-                    'retransmits': i['sum']['retransmits']
-                })
-                time_stamp += 1
-        else:
-            for i in results['intervals']:
-                self.results['bps'].append(i['sum']['bits_per_second'])
-                self.results['retransmits'].append(i['sum']['retransmits'])
+
+        time_stamp = results['start']['timestamp']['timesecs']
+        for i in results['intervals']:
+            self.final_results.append({
+                'time': time_stamp,
+                'bps': i['sum']['bits_per_second'],
+                'retransmits': i['sum']['retransmits']
+            })
+            if self.config['metrics']['enable']:
+                self.metric.send_metric(BPS_METRIC, i['sum']['bits_per_second'], time_stamp)
+                self.metric.send_metric(RETRAN_METRIC, i['sum']['retransmits'], time_stamp)
+            time_stamp += 1
+
         logging.info('Completed iperf command: %s', command)
 
 

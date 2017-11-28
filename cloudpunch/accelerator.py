@@ -25,13 +25,12 @@ from cloudpunch.ostlib import osswift
 
 class Accelerator(object):
 
-    def __init__(self, config, creds, env, admin_mode=False, manual_mode=False,
+    def __init__(self, config, creds, env, manual_mode=False,
                  cloudpunch_id=None, results_format='yaml', verify=True):
         # Save all arguments
         self.config = config.get_config()
         self.creds = creds
         self.env = env
-        self.admin_mode = admin_mode
         self.manual_mode = manual_mode
         self.cloudpunch_id = cloudpunch_id
         self.results_format = results_format
@@ -41,8 +40,6 @@ class Accelerator(object):
         self.cp_id = random.randint(1000000, 9999999)
         # Base name for all resources
         self.cp_name = 'cloudpunch-%s' % self.cp_id
-        # Randomized password for created user when admin mode is enabled
-        self.cp_password = str(random.getrandbits(64))
 
         # Contains instance information
         self.instance_map = []
@@ -131,7 +128,7 @@ class Accelerator(object):
                          self.creds[label].get_creds()['region_name'])
             # Create the Keystone session
             self.sessions[label] = osuser.Session(self.creds[label], verify=self.verify).get_session()
-            # Setup user and project (if admin mode), security group. and keypair
+            # Setup security group and keypair
             self.setup_environment(label)
             # Find the external network
             self.ext_networks[label] = osnetwork.ExtNetwork(self.sessions[label],
@@ -176,22 +173,6 @@ class Accelerator(object):
         self.show_environment()
 
     def setup_environment(self, label):
-        # Create a project and a user if admin mode is enabled
-        if self.admin_mode:
-            logging.info('Admin mode enabled, creating own project and user')
-            # Create project
-            project = osuser.Project(self.sessions[label], self.creds[label].get_region(),
-                                     self.creds[label].get_version())
-            project.create(self.cp_name)
-            self.resources['projects'][label].append(project)
-            # Create user
-            user = osuser.User(self.sessions[label], self.creds[label].get_region(),
-                               self.creds[label].get_version())
-            user.create(self.cp_name, self.cp_password, project.get_id())
-            self.resources['users'][label].append(user)
-            # Change to new user and project
-            self.creds[label].change_user(self.cp_name, self.cp_password, self.cp_name)
-
         # Create security group and add rules based on config
         logging.info('Creating security group')
         secgroup = osnetwork.SecurityGroup(self.sessions[label], self.creds[label].get_region(),
