@@ -34,13 +34,13 @@ class Metrics(object):
         timestamp_final = timestamp * (10**9)
 
         # Process tags
-        tags = []
+        processed_tags = []
         for tagname, tagvalue in tags.items():
             # Tags need spaces escaped
-            tags.append('%s=%s' % (tagname, str(tagvalue).replace(' ', '\ ')))
+            processed_tags.append('%s=%s' % (tagname, str(tagvalue).replace(' ', '\ ')))
 
         # Process fields
-        fields = []
+        processed_fields = []
         for fieldname, fieldvalue in fields.items():
             # Integers must have an i (123i)
             if isinstance(fieldvalue, int):
@@ -51,14 +51,14 @@ class Metrics(object):
             # Strings need to have double quotes
             else:
                 field_value = '"%s"' % fieldvalue
-            fields.append('%s=%s' % (fieldname, field_value))
+            processed_fields.append('%s=%s' % (fieldname, field_value))
 
         # Sort tags for better performance
-        tags.sort()
+        processed_tags.sort()
 
         # Build the final converted message
-        tags_final = ','.join(tags)
-        fields_final = ','.join(fields)
+        tags_final = ','.join(processed_tags)
+        fields_final = ','.join(processed_fields)
         converted = '%s,%s %s %s' % (name, tags_final, fields_final, timestamp_final)
         logging.debug('Converted message to Influx DB: %s', converted)
 
