@@ -2,13 +2,28 @@ import logging
 import json
 import os
 
-import keystoneauth1
+import keystoneauth1.exceptions.http
+import neutronclient.common.exceptions
 
 from cloudpunch.ostlib import osuser
 from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
 from cloudpunch.ostlib import osswift
+
+DEFAULT_API_VERSIONS = {
+    'cinder': 2,
+    'neutron': 2,
+    'nova': 2,
+}
+RESOURCE_ORDER = [
+    'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
+    'monitors', 'members', 'pool_vips', 'pools',
+    'instances', 'volumes',
+    'floaters', 'routers', 'networks',
+    'keypairs', 'secgroups',
+    'containers'
+]
 
 
 class Cleanup(object):
@@ -24,6 +39,15 @@ class Cleanup(object):
         self.names = names
 
     def run(self):
+        # Set API versions
+        if self.cleanup_data and 'api_versions' in self.cleanup_data:
+            api_versions = self.cleanup_data['api_versions']
+        else:
+            api_versions = DEFAULT_API_VERSIONS
+
+        # Create resource breakdown
+        self.create_resource_breakdown(api_versions)
+
         # We need to search for resources that cloudpunch has made
         if self.cleanup_file == 'search':
             cleanup_info = self.search_resources()
@@ -50,33 +74,16 @@ class Cleanup(object):
             # Save any left over resources
             self.check_resources(cleanup_info)
 
-    def search_resources(self):
+    def create_resource_breakdown(self, versions):
         # Create the OpenStack session
         session = osuser.Session(self.creds, self.verify).get_session()
 
-        resources = {}
-        # Set API versions
-        versions = {
-            'cinder': 2,
-            'neutron': 2,
-            'nova': 2,
-        }
         # Set Keystone API version
         versions['keystone'] = self.creds.get_version()
 
-        location = self.creds.get_creds()['auth_url']
         region = self.creds.get_region()
-        logging.info('Searching for CloudPunch resources on %s under region %s' % (location, region))
 
-        search_order = [
-            # 'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
-            # 'monitors', 'members', 'pool_vips', 'pools',
-            'instances', 'volumes',
-            'floaters', 'routers', 'networks',
-            'keypairs', 'secgroups',
-            'containers',
-        ]
-        resource_breakdown = {
+        self.resource_breakdown = {
             'lbaas_monitors': {
                 'label': 'lbaas v2 monitors',
                 'object': osnetwork.lbaasMonitor(session, region, versions['neutron'])
@@ -143,21 +150,30 @@ class Cleanup(object):
             }
         }
 
-        for resource in search_order:
-            resource_object = resource_breakdown[resource]['object']
+    def search_resources(self):
+        resources = {}
+        location = self.creds.get_creds()['auth_url']
+        region = self.creds.get_region()
+        logging.info('Searching for CloudPunch resources on %s under region %s' % (location, region))
+
+        for resource in RESOURCE_ORDER:
+            logging.info('Searching for %s', self.resource_breakdown[resource]['label'])
+            resource_object = self.resource_breakdown[resource]['object']
             found_resources = []
             try:
                 resource_list = resource_object.list()
-            # Used to catch forbidden responses from looking for users and projects
-            except keystoneauth1.exceptions.http.Forbidden:
+            # Catch when an endpoint is not available
+            except (neutronclient.common.exceptions.NotFound, keystoneauth1.exceptions.connection.ConnectFailure,
+                    keystoneauth1.exceptions.catalog.EndpointNotFound):
+                logging.info('Found 0 %s', self.resource_breakdown[resource]['label'])
                 continue
             # Find floating ip addresses on found instances
             if resource == 'floaters':
                 if 'instances' in resources:
                     for instance in resources['instances']:
-                        ips = resource_breakdown['instances']['object'].list_ips(instance, include_networks=False)
+                        ips = self.resource_breakdown['instances']['object'].list_ips(instance, include_networks=False)
                         if ips['floating']:
-                            float_object = resource_breakdown['floaters']['object']
+                            float_object = self.resource_breakdown['floaters']['object']
                             found_resources.append(float_object.get_id(ips['floating'][0]))
                             if self.names:
                                 logging.info('Found floating ip address %s (%s)',
@@ -169,108 +185,24 @@ class Cleanup(object):
                         found_resources.append(current_resource['id'])
                         if self.names:
                             logging.info('Found %s %s (%s)',
-                                         resource_breakdown[resource]['label'][:-1],
+                                         self.resource_breakdown[resource]['label'][:-1],
                                          current_resource['id'],
                                          current_resource['name'])
-            logging.info('Found %s %s', len(found_resources), resource_breakdown[resource]['label'])
+            logging.info('Found %s %s', len(found_resources), self.resource_breakdown[resource]['label'])
             if len(found_resources) > 0:
                 resources[resource] = found_resources
 
-        resources['api_versions'] = versions
         return resources
 
     def clean(self, cleanup_info):
-        # Create the OpenStack session
-        session = osuser.Session(self.creds, self.verify).get_session()
-
-        # Load in API versions
-        versions = cleanup_info['api_versions']
-        # Set Keystone API version
-        versions['keystone'] = self.creds.get_version()
-
         location = self.creds.get_creds()['auth_url']
         region = self.creds.get_region()
         logging.info('Cleaning up resources on %s under region %s', location, region)
 
-        delete_order = [
-            'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
-            'monitors', 'members', 'pool_vips', 'pools',
-            'instances', 'volumes',
-            'floaters', 'routers', 'networks',
-            'keypairs', 'secgroups',
-            'containers'
-        ]
-        resource_breakdown = {
-            'lbaas_monitors': {
-                'label': 'lbaas v2 monitors',
-                'object': osnetwork.lbaasMonitor(session, region, versions['neutron'])
-            },
-            'lbaas_listeners': {
-                'label': 'lbaas v2 listeners',
-                'object': osnetwork.lbaasListener(session, region, versions['neutron'])
-            },
-            'lbaas_pools': {
-                'label': 'lbaas v2 pools',
-                'object': osnetwork.lbaasPool(session, region, versions['neutron'])
-            },
-            'lbaas_lbs': {
-                'label': 'lbaas v2 loadbalancers',
-                'object': osnetwork.lbaasLB(session, region, versions['neutron'])
-            },
-            'monitors': {
-                'label': 'loadbalancer monitors',
-                'object': osnetwork.Monitor(session, region, versions['neutron'])
-            },
-            'members': {
-                'label': 'loadbalancer members',
-                'object': osnetwork.Member(session, region, versions['neutron'])
-            },
-            'pool_vips': {
-                'label': 'loadbalancer pool vips',
-                'object': osnetwork.PoolVIP(session, region, versions['neutron'])
-            },
-            'pools': {
-                'label': 'loadbalancer pools',
-                'object': osnetwork.Pool(session, region, versions['neutron'])
-            },
-            'instances': {
-                'label': 'instances',
-                'object': oscompute.Instance(session, region, versions['nova'])
-            },
-            'volumes': {
-                'label': 'volumes',
-                'object': osvolume.Volume(session, region, versions['cinder'])
-            },
-            'floaters': {
-                'label': 'floating ip addresses',
-                'object': osnetwork.FloatingIP(session, region, versions['neutron'])
-            },
-            'routers': {
-                'label': 'routers',
-                'object': osnetwork.Router(session, region, versions['neutron'])
-            },
-            'networks': {
-                'label': 'networks',
-                'object': osnetwork.Network(session, region, versions['neutron'])
-            },
-            'keypairs': {
-                'label': 'keypairs',
-                'object': oscompute.KeyPair(session, region, versions['nova'])
-            },
-            'secgroups': {
-                'label': 'security groups',
-                'object': osnetwork.SecurityGroup(session, region, versions['nova'])
-            },
-            'containers': {
-                'label': 'swift containers',
-                'object': osswift.Container(session, self.creds.get_cacert(), not self.verify)
-            }
-        }
-
-        for resource in delete_order:
+        for resource in RESOURCE_ORDER:
             if resource in cleanup_info:
-                logging.info('Deleting %s', resource_breakdown[resource]['label'])
-                resource_object = resource_breakdown[resource]['object']
+                logging.info('Deleting %s', self.resource_breakdown[resource]['label'])
+                resource_object = self.resource_breakdown[resource]['object']
                 for resource_id in cleanup_info[resource][:]:
                     try:
                         if resource_object.delete(resource_id):

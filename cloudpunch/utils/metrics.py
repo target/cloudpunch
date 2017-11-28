@@ -17,7 +17,9 @@ class Metrics(object):
     def send_metric(self, name, value, timestamp=None, extra_tags={}):
         tags = {
             'app': 'cloudpunch',
-            'testnumber': sysinfo.testnum()
+            'testnumber': sysinfo.testnum(),
+            'hostname': sysinfo.hostname(),
+            'role': sysinfo.role()
         }
         fields = {
             'value': value
