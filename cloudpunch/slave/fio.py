@@ -78,7 +78,7 @@ class CloudPunchTest(Thread):
                     if job[label]['io_bytes'] == 0:
                         continue
                     # Job has completed
-                    if 'bytes' in self.final_results[jobname][label][-1]:
+                    if self.final_results[jobname][label]:
                         last_bytes = self.final_results[jobname][label][-1]['bytes'] / 1000
                         if job[label]['io_bytes'] == last_bytes:
                             continue
