@@ -27,10 +27,10 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Slave (OpenStack image)
     - Python 2.7
-    - PIP: xmltodict, gunicorn, kafka-python
+    - PIP: xmltodict, gunicorn, kafka
     - Packages: none
 
-The OpenStack image used should contain all required software for the best staging time. If the image is missing software, the `shared_userdata` and `userdata` keys for respective roles will have to contain the commands required to install the missing software. The CloudPunch software must be contained under `/opt/cloudpunch`
+The OpenStack image used should contain all required software for the best staging time. If the image is missing software, the `shared_userdata` and `userdata` keys for respective roles will have to contain the commands required to install the missing software. The CloudPunch software must be install as the `cloudpunch` command
 
 ##### Why?
 
@@ -52,7 +52,7 @@ The OpenStack image used should contain all required software for the best stagi
     - requests - handles API calls to master server
     - xmltodict - modifies the jmeter XML file
     - gunicorn - runs as a web server for jmeter tests
-    - kafka-python - sends test metrics to Kafka
+    - kafka - sends test metrics to Kafka
 
 ## CloudPunch Installation
 

@@ -17,7 +17,7 @@ class Configuration(object):
         default_config = {
             'cleanup_resources': True,
             'server_client_mode': True,
-            'servers_give_results': False,
+            'servers_give_results': True,
             'overtime_results': False,
             'instance_threads': 5,
             'retry_count': 50,

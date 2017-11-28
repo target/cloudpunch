@@ -32,25 +32,21 @@ The following options are given on the command-line when using cloudpunch run
 
 - `-m, --hostmap` - Provide a hostmap file to determine where each instance created will be hosted on. See Hostmap Files below for more information
 
-- `-f, --flavor` - Provide a flavor file to determine the percentage of instances with specific flavors. This will override any flavor configuration. See Flavor Files below for more information
+- `-b, --flavor` - Provide a flavor file to determine the percentage of instances with specific flavors. This will override any flavor configuration. See Flavor Files below for more information
 
 - `-o, --output` - Specify an output file to save results to. Results will be printed to `stdout` if an output file is not specified
 
+- `-f, --format` - Format the results into the specified format. Can be yaml or json with yaml being the default
+
 - `-p, --password` - Provide a password or token to authenticate to OpenStack. This should only be used when in a non-interactive environment and the environment does not contain the password or token
 
-- `p2, --password2` - Password for second OpenStack instance if `--split` is used
+- `-p2, --password2` - Password for second OpenStack instance if `--split` is used
+
+- `-i, --reuse` - Enable reuse mode by providing an existing CloudPunch run ID. This will reuse any resources that belong to this ID and adjust the environment to match the new configuration
 
 - `--no-env` - Disables loading authentication information from the environment. Use this to force the OpenRC file over the environment
 
-- `--admin` - Enable admin-mode when staging the environment. This will create a tenant and user to be used by CloudPunch to contain anything created from the test. The tenant and user will be deleted when the test is complete
-
-- `--split` - Enable split-mode. This allows for two different OpenStack instances or regions. If doing separate instances, both environment and OpenRC files should be given for the second instance. If no second environment file is given, the first or default will be used. A second OpenRC file is required for both separate instances and regions. If enabled, `server_client_mode` must be enabled and `network_mode` must be "full". Servers will exist on the first instance and clients will exist on the second instance
-
 - `--manual` - Enable manual test start mode. After the environment is staged and ready but before the test begins, the user must press Enter to continue. Note that this requires interactive
-
-- `--reuse` - Enable reuse mode. After a test is complete the user will be asked to rerun the same test, a different test, or abort. Enabling this mode allows the use of the environment again before a tear down occurs. This can save a lot of time for large scale environments. Running the same test will simply start the test again on the slaves and report results again. Running a different test requires providing a different configuration file where values will be loaded. Note that this will override the current configuration so only values that require change should be changed. Also note that the `-o` option file will have a `-n` appended to the end (n being the test number)
-
-- `--yaml` - Display the results of tests in YAML format instead of JSON format
 
 - `--insecure` - Turn off SSL verification to the OpenStack API's
 
@@ -138,6 +134,12 @@ recovery:
   type: ask
   threshold: 80
   retries: 12
+metrics:
+  enable: false
+  topic:
+  brokers: []
+  format: influxdb
+  tags: {}
 ```
 
 ##### Configuration Key Reference
@@ -192,6 +194,18 @@ recovery:
 
   - `retries` - The number of retries before a recovery is to take place. If the threshold is not passed, recovery will be ignored
 
+- `metrics` - Used to send test metrics to Kafka while tests are running. `metrics` has the following sub keys:
+
+  - `enable` - If to enable sending metrics
+
+  - `topic` - Name of the Kafka topic to send messages to
+
+  - `brokers` - A list of Kafka brokers to connect to
+
+  - `format` - The format of the messages sent to Kafka. Currently only influxdb is supported
+
+  - `tags` - A dictionary of tags to add to all metrics sent to Kafka
+
 ## Environment Files
 
 The environment is a JSON or YAML formatted file containing information needed to run CloudPunch in specific environments and is provided using the `-e` command-line option. Default values will be used if keys are missing from the file
@@ -203,6 +217,7 @@ image_name: CentOS7
 public_key_file: ~/.ssh/id_rsa.pub
 api_versions:
   cinder: 2
+  glance: 2
   nova: 2
   neutron: 2
   lbaas: 2
@@ -273,8 +288,14 @@ secgroup_rules:
     - -1
     - -1
   - - tcp
+    - 22
+    - 22
+  - - tcp
     - 80
     - 80
+  - - tcp
+    - 5201
+    - 5201
 dns_nameservers:
   - 8.8.8.8
   - 8.8.4.4

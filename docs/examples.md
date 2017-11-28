@@ -158,29 +158,14 @@ Press enter to start test
 
 Simply hit Enter and the test will begin.
 
-## Reusing Instances
-
-To reuse the environment setup by CloudPunch use the `--reuse` command-line option. After the test completes you will be prompted:
-
-```
-2016-08-04 13:21:50 INFO All instances have posted results
-2016-08-04 13:21:50 INFO Got results from master
-2016-08-04 13:21:50 INFO Results:
-[{"hostname": "CloudPunch-7855343-master-s1", "results": {"ping": {"duration": 5, "latency": 12.7, "target": "google.com"}}}]
-Enter new test type (same, different, abort)
-```
-
-Entering same will rerun the test, different will prompt for a new configuration file, and abort will tear down the environment.
-
 ## Tests Across Environments
 
 CloudPunch supports testing across OpenStack environments or regions. The setup is the same for both scenarios. To do this simply add the following to the command-line:
 
 - `-r2` - The second environment or region OpenRC file.
 - `-e2` - The second environment or region environment file. This is optional. If not given, the environment file given by `-e` will be used.
-- `--split` - Enables split mode which allows tests to run across environments or regions.
 
-The master instance will be created on environment or region 1 with servers while environment or region 2 will contain clients.
+The master instance will be created on environment 1 or region 1 with servers while environment 2 or region 2 will contain clients.
 
 ## Post Test Cleanup of Resources
 

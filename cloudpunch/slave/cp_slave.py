@@ -131,14 +131,15 @@ class CPSlave(object):
 
     def run_test(self, config):
         test_results = {}
+        threads = []
+        # Add tests to thread list
+        for test_name in config['test']:
+            module = importlib.import_module(test_name)
+            t = module.CloudPunchTest(config)
+            threads.append(t)
+
         if config['test_mode'] == 'list':
             logging.info('I am running tests one at a time')
-            threads = []
-            # Add tests to thread list
-            for test_name in config['test']:
-                module = importlib.import_module(test_name)
-                t = module.CloudPunchTest(config)
-                threads.append(t)
             # Run each test thread
             for t in threads:
                 if config['test_start_delay'] > 0:
@@ -154,12 +155,6 @@ class CPSlave(object):
 
         elif config['test_mode'] == 'concurrent':
             logging.info('I am starting all the tests at once')
-            threads = []
-            # Add tests to thread list
-            for test_name in config['test']:
-                module = importlib.import_module('cloudpunch.slave.%s' % test_name)
-                t = module.CloudPunchTest(config)
-                threads.append(t)
             if config['test_start_delay'] > 0:
                 logging.info('Waiting %s seconds for test_start_delay', config['test_start_delay'])
                 time.sleep(config['test_start_delay'])
@@ -176,11 +171,14 @@ class CPSlave(object):
                     test_name = t.__module__
                     test_name = test_name.split('.')[-1]
                     test_results[test_name] = t.final_results
+
         else:
             logging.error('Unknown test mode %s', config['test_mode'])
+
         return test_results
 
     def send_test_results(self, config, test_results):
+        # Check if configuration is set to send back results
         send_results = False
         if config['server_client_mode']:
             if config['role'] == 'server' and config['servers_give_results']:
@@ -189,10 +187,11 @@ class CPSlave(object):
                 send_results = True
         else:
             send_results = True
+
         if send_results:
             if not test_results:
-                logging.error('Expected to send results but no results to send')
                 test_results = 'Expected to send results but no results to send'
+                logging.error(test_results)
             test_result_body = {
                 'hostname': self.hostname,
                 'results': test_results

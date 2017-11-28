@@ -39,7 +39,6 @@
     - [Tests on Specific OpenStack Hosts](./examples.md#tests-on-specific-openstack-hosts)
     - [Varying Flavor Use](./examples.md#varying-flavor-use)
     - [Manually Starting](./examples.md#manually-starting)
-    - [Reusing Instances](./examples.md#reusing-instances)
     - [Tests Across Environments](./examples.md#tests-across-environments)
     - [Post Test Cleanup of Resources](./examples.md#post-test-cleanup-of-resources)
     - [Recovery from Unregistered Instances](./examples.md#recovery-from-unregistered-instances)

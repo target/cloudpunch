@@ -2,6 +2,15 @@
 
 Tests that live under `cloudpunch/slave` will be documented here.
 
+All metrics sent to Kafka are tagged with the following tags:
+
+| Tag Name   | Tag Value        | Description                                 |
+| ---------  | ---------------- | ------------------------------------------- |
+| app        | cloudpunch       | Static tag used to identify as cloudpunch   |
+| testnumber | dynamic          | CloudPunch run ID                           |
+| hostname   | dynamic          | Hostname of the instance sending the metric |
+| role       | server or client | The role of the instance sending the metric |
+
 ## FIO
 
 FIO is short for Flexible IO, a versatile IO workload generator. FIO is widely used as an industry standard benchmark, stress testing tool, and for IO verification purposes. See [here](http://linux.die.net/man/1/fio) for official FIO documentation
@@ -69,12 +78,14 @@ fio:
 
 The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
 
-| Results Name | Definition                            |
-| ------------ | ------------------------------------- |
-| iops         | Input/Output Operations per Second    |
-| latency      | Latency in milliseconds               |
-| bandwidth    | Bandwidth in bytes per second         |
-| bytes        | Total number of bytes written or read |
+| Results Name | Metric Name                          | Definition                            |
+| ------------ | ------------------------------------ | ------------------------------------- |
+| iops         | cloudpunch.fio.{read/write}.iops     | Input/Output Operations per Second    |
+| latency      | cloudpunch.fio.{read/write}.latency  | Latency in milliseconds               |
+| bandwidth    | cloudpunch.fio.{read/write}.banwidth | Bandwidth in bytes per second         |
+| bytes        | cloudpunch.fio.{read/write}.bytes    | Total number of bytes written or read |
+
+FIO tests are also tagged with the job name (job=name) if sending metrics to Kafka
 
 ##### Overtime Results
 
@@ -180,10 +191,10 @@ iperf:
 
 The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
 
-| Results Name | Definition         |
-| ------------ | ------------------ |
-| bps          | Bits per second    |
-| retransmits  | Packet retransmits |
+| Results Name | Metric Name                  | Definition         |
+| ------------ | ---------------------------- |------------------ |
+| bps          | cloudpunch.iperf.bps         | Bits per second    |
+| retransmits  | cloudpunch.iperf.retransmits | Packet retransmits |
 
 ##### Overtime Results
 
@@ -244,9 +255,9 @@ ping:
 
 The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
 
-| Results Name | Definition              |
-| ------------ | ----------------------- |
-| latency      | Latency in milliseconds |
+| Results Name | Metric Name             | Definition              |
+| ------------ | ----------------------- | ----------------------- |
+| latency      | cloudpunch.ping.latency | Latency in milliseconds |
 
 ##### Overtime Results
 
@@ -324,10 +335,10 @@ Stress-ng results are what random number stress-ng was assigned to run at each i
 
 The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
 
-| Results Name | Definition                    |
-| ------------ | ----------------------------- |
-| load         | Amount of CPU load in percent |
-| cores        | Number of CPU cores           |
+| Results Name | Metric Name             | Definition                    |
+| ------------ | ----------------------- | ----------------------------- |
+| load         | cloudpunch.stress.load  | Amount of CPU load in percent |
+| cores        | cloudpunch.stress.cores | Number of CPU cores           |
 
 ##### Overtime Results
 
@@ -417,12 +428,12 @@ jmeter:
 
 The following is a mapping of test results to definition. Use these names with the `-s` option on cloudpunch post when using `-f graph`
 
-| Results Name | Definition              |
-| ------------ | ----------------------- |
-| rps          | Requests per second     |
-| latency      | Latency in milliseconds |
-| ecount       | Packet error count      |
-| epercent     | Packet error percentage |
+| Results Name | Metric Name                | Definition              |
+| ------------ | -------------------------- | ----------------------- |
+| rps          | cloudpunch.jmeter.rps      | Requests per second     |
+| latency      | cloudpunch.jmeter.latency  | Latency in milliseconds |
+| ecount       | cloudpunch.jmeter.ecount   | Packet error count      |
+| epercent     | cloudpunch.jmeter.epercent | Packet error percentage |
 
 ##### Overtime Results
 
