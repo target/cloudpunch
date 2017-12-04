@@ -21,11 +21,6 @@ class Environment(object):
                 'nova': 2,
                 'lbaas': 2
             },
-            'master': {
-                'flavor': 'm1.small',
-                'availability_zone': '',
-                'userdata': []
-            },
             'server': {
                 'flavor': 'm1.small',
                 'availability_zone': '',
@@ -107,7 +102,6 @@ class Environment(object):
             'secgroup_rules': [
                 ['icmp', -1, -1],
                 ['tcp', 22, 22],
-                ['tcp', 80, 80],
                 ['tcp', 5201, 5201]
             ],
             'dns_nameservers': [

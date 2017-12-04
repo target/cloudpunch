@@ -47,7 +47,7 @@ class CloudPunchTest(Thread):
             self.config = cpc.merge_configs(default_config, self.config)
             self.runtest()
         except Exception as e:
-            # Send exceptions back to master
+            # Send exceptions back to control
             self.final_results = '%s: %s' % (type(e).__name__, e.message)
             logging.error(self.final_results)
 

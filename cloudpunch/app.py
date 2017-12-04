@@ -2,14 +2,17 @@ import logging
 import argparse
 import os
 
+import threading
+
 from cloudpunch import accelerator
 from cloudpunch import cleanup
 from cloudpunch import configuration
 from cloudpunch import environment
 from cloudpunch import post
 from cloudpunch.ostlib import credentials
-from cloudpunch.master import cp_master
-from cloudpunch.slave import cp_slave
+from cloudpunch.control import cp_control
+from cloudpunch.worker import cp_worker
+from cloudpunch.utils import network
 
 
 LOGFORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -115,6 +118,24 @@ def cp_app():
                             dest='cloudpunch_id',
                             default=None,
                             help='CloudPunch ID to connect to')
+    run_parser.add_argument('-l',
+                            '--listen',
+                            action='store',
+                            dest='host',
+                            default='0.0.0.0',
+                            help='host address to listen on (default: 0.0.0.0)')
+    run_parser.add_argument('-t',
+                            '--port',
+                            action='store',
+                            dest='port',
+                            default='9985',
+                            help='port to listen on (default: 9985)')
+    run_parser.add_argument('-w',
+                            '--connect',
+                            action='store',
+                            dest='connection',
+                            default=None,
+                            help='interface or ip address workers connect to')
     run_parser.add_argument('--no-env',
                             action='store_true',
                             dest='no_env',
@@ -209,32 +230,18 @@ def cp_app():
                              action='store_true',
                              dest='open_graph',
                              help='open generated graph after creation (graph format only)')
-    # Master parser
-    master_parser = subparsers.add_parser('master',
-                                          help='start the master server')
-    master_parser.add_argument('-l',
-                               '--listen',
-                               action='store',
-                               dest='host',
-                               default='0.0.0.0',
-                               help='host address to listen on (default: 0.0.0.0)')
-    master_parser.add_argument('-p',
+
+    # Worker parser
+    worker_parser = subparsers.add_parser('worker',
+                                          help='start a worker server')
+    worker_parser.add_argument('control_ip',
+                               help='control ip address')
+    worker_parser.add_argument('-p',
                                '--port',
                                action='store',
-                               dest='port',
-                               default='80',
-                               help='port to listen on (default: 80)')
-    master_parser.add_argument('-d',
-                               '--debug',
-                               action='store_true',
-                               dest='debug_mode',
-                               help='enable debug mode')
-
-    # Slave parser
-    slave_parser = subparsers.add_parser('slave',
-                                         help='start a slave server')
-    slave_parser.add_argument('master_ip',
-                              help='master ip address')
+                               dest='control_port',
+                               default='9985',
+                               help='port to connect to (default: 9985)')
 
     args = parser.parse_args()
 
@@ -250,6 +257,17 @@ def cp_app():
 
     # Run workload
     if args.workload == 'run':
+
+        # Figure out what ip address workers will connect to
+        control_ip = network.find_ip_address(args.connection)
+        return
+
+        # Start the control server
+        logging.info('Starting control server')
+        ct = threading.Thread(name='controlthread', target=controlThread, args=[args.host, args.port])
+        ct.daemon = True
+        ct.start()
+
         # Verify results file format
         if args.format not in ['yaml', 'json']:
             raise CPError('Invalid format of results file. Must be yaml or json')
@@ -296,6 +314,9 @@ def cp_app():
 
         # Create accelerator object and run it
         acc = accelerator.Accelerator(config, creds, env,
+                                      control_ip=control_ip,
+                                      control_port=args.port,
+                                      control_local=args.host,
                                       manual_mode=args.manual_mode,
                                       cloudpunch_id=args.cloudpunch_id,
                                       results_format=args.format,
@@ -328,16 +349,14 @@ def cp_app():
                                  open_graph=args.open_graph)
         post_process.run()
 
-    # Master workload
-    elif args.workload == 'master':
-        cp_master.run(host=args.host,
-                      port=args.port,
-                      debug=args.debug_mode)
+    # Worker workload
+    elif args.workload == 'worker':
+        worker_server = cp_worker.CPWorker(args.control_ip, args.control_port)
+        worker_server.run()
 
-    # Slave workload
-    elif args.workload == 'slave':
-        slave_server = cp_slave.CPSlave(args.master_ip)
-        slave_server.run()
+
+def controlThread(host, port):
+    cp_control.run(host=host, port=int(port), debug=False)
 
 
 def main():
@@ -345,7 +364,7 @@ def main():
         cp_app()
     except (CPError, configuration.ConfigError, environment.EnvError,
             credentials.CredError, cleanup.CleanupError, post.PostExcept,
-            cp_slave.CPSlaveError) as e:
+            cp_worker.CPWorkerError, network.NetworkUtilError) as e:
         logging.error(e.message)
     except KeyboardInterrupt:
         pass

@@ -13,11 +13,6 @@ def testnum():
 def role():
     name = hostname()
     name_split = name.split('-')
-    if name_split[2] == 'master':
-        if name_split[3][0] == 's':
-            return 'server'
-        if name_split[3][0] == 'c':
-            return 'client'
     if name_split[2] == 's':
         return 'server'
     if name_split[2] == 'c':

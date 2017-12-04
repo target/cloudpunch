@@ -90,7 +90,7 @@ FIO tests are also tagged with the job name (job=name) if sending metrics to Kaf
 ##### Overtime Results
 
 ```yaml
-- hostname: cloudpunch-6924523-master-s1
+- hostname: cloudpunch-6924523-r1-n1-s1
   results:
     fio:
       fiotest:
@@ -121,7 +121,7 @@ FIO tests are also tagged with the job name (job=name) if sending metrics to Kaf
 ##### Summary Results
 
 ```yaml
-- hostname: cloudpunch-5454269-master-s1
+- hostname: cloudpunch-5454269-r1-n1-s1
   results:
     fio:
       fiotest:
@@ -199,7 +199,7 @@ The following is a mapping of test results to definition. Use these names with t
 ##### Overtime Results
 
 ```yaml
-- hostname: cloudpunch-8678796-master-c1
+- hostname: cloudpunch-8678796-r1-n1-c1
   results:
     iperf:
       - bps: 1241740000
@@ -222,7 +222,7 @@ The following is a mapping of test results to definition. Use these names with t
 ##### Summary Results
 
 ```yaml
-- hostname: cloudpunch-9686117-master-c1
+- hostname: cloudpunch-9686117-r1-n1-c1
   results:
     iperf:
       bps: 63472446.666666664
@@ -262,7 +262,7 @@ The following is a mapping of test results to definition. Use these names with t
 ##### Overtime Results
 
 ```yaml
-- hostname: cloudpunch-3693039-master-c1
+- hostname: cloudpunch-3693039-r1-n1-c1
   results:
     ping:
       - latency: 0.874
@@ -280,7 +280,7 @@ The following is a mapping of test results to definition. Use these names with t
 ##### Summary Results
 
 ```yaml
-- hostname: cloudpunch-3803825-master-c1
+- hostname: cloudpunch-3803825-r1-n1-c1
   results:
     ping:
       latency: 0.2032
@@ -461,7 +461,7 @@ The following is a mapping of test results to definition. Use these names with t
 ##### Summary Results
 
 ```yaml
-- hostname: cloudpunch-5487841-c-master-n1-c1
+- hostname: cloudpunch-5487841-c-r1-n1-c1
   results:
     jmeter:
       ecount: 2405

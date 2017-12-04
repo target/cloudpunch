@@ -42,18 +42,17 @@ pip install cloudpunch
 ```
 $ cloudpunch -h
 usage: cloudpunch [-h] [-v] [-l LOG_LEVEL] [-L LOG_FILE]
-                  {run,cleanup,post,master,slave} ...
+                  {run,cleanup,post,worker} ...
 
 Framework for OpenStack performance testing
 
 positional arguments:
-  {run,cleanup,post,master,slave}
+  {run,cleanup,post,worker}
                         workloads
     run                 run a test
     cleanup             cleanup resources
     post                process results
-    master              start the master server
-    slave               start a slave server
+    worker              start a worker server
 
 optional arguments:
   -h, --help            show this help message and exit

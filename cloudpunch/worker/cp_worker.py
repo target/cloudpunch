@@ -8,28 +8,28 @@ import os
 import cloudpunch.utils.sysinfo as sysinfo
 
 
-class CPSlave(object):
+class CPWorker(object):
 
-    def __init__(self, master_ip):
-        self.master_ip = master_ip
-        self.baseurl = 'http://%s' % master_ip
+    def __init__(self, control_ip, control_port):
+        self.control_ip = control_ip
+        self.baseurl = 'http://%s:%s' % (control_ip, control_port)
 
     def run(self):
         self.hostname = sysinfo.hostname()
-        # Wait for master serer to be ready
-        self.wait_for_master()
+        # Wait for control serer to be ready
+        self.wait_for_control()
 
-        # Register to master server
-        self.register_to_master()
+        # Register to control server
+        self.register_to_control()
 
         # Infinite loop when more than one test is to be run
         while True:
             self.run_iteration()
 
-    def wait_for_master(self):
+    def wait_for_control(self):
         status = 0
         while status != 200:
-            logging.info('Attempting to connect to master server %s' % self.master_ip)
+            logging.info('Attempting to connect to control server %s' % self.control_ip)
             try:
                 request = requests.get('%s/api/system/health' % self.baseurl, timeout=3)
                 status = request.status_code
@@ -37,9 +37,9 @@ class CPSlave(object):
                 status = 0
             if status != 200:
                 time.sleep(1)
-        logging.info('Connected successfully to master server')
+        logging.info('Connected successfully to control server')
 
-    def register_to_master(self):
+    def register_to_control(self):
         register_body = {
             'hostname': self.hostname,
             'internal_ip': sysinfo.ip(),
@@ -48,7 +48,7 @@ class CPSlave(object):
         }
         status = 0
         while status != 200:
-            logging.info('Attempting to register to master server')
+            logging.info('Attempting to register to control server')
             try:
                 request = requests.post('%s/api/register' % self.baseurl, json=register_body, timeout=3)
                 status = request.status_code
@@ -56,13 +56,13 @@ class CPSlave(object):
                 status = 0
             if status != 200:
                 time.sleep(1)
-        logging.info('Registered to master server')
+        logging.info('Registered to control server')
 
     def run_iteration(self):
         # Wait for test status to be go
         self.wait_for_go()
 
-        # Get test information from master
+        # Get test information from control
         config = self.get_config()
 
         # Log information
@@ -75,7 +75,7 @@ class CPSlave(object):
         test_results = self.run_test(config)
         logging.info('All tests have finished')
 
-        # Send results to master if required
+        # Send results to control if required
         self.send_test_results(config, test_results)
         logging.info('Test process complete. Starting over')
 
@@ -102,7 +102,7 @@ class CPSlave(object):
         }
         status = 0
         while status != 200:
-            logging.info('Attempting to get test information from master')
+            logging.info('Attempting to get test information from control')
             try:
                 request = requests.post('%s/api/test/run' % self.baseurl, json=test_body, timeout=3)
                 status = request.status_code
@@ -110,7 +110,7 @@ class CPSlave(object):
                 status = 0
             if status != 200:
                 time.sleep(1)
-        logging.info('Got test information from master')
+        logging.info('Got test information from control')
         return json.loads(request.text)
 
     def log_info(self, config):
@@ -198,7 +198,7 @@ class CPSlave(object):
             }
             status = 0
             while status != 200:
-                logging.info('Attempting to send test results to master')
+                logging.info('Attempting to send test results to control')
                 try:
                     request = requests.post('%s/api/test/results' % self.baseurl, json=test_result_body, timeout=3)
                     status = request.status_code
@@ -206,13 +206,13 @@ class CPSlave(object):
                     status = 0
                 if status != 200:
                     time.sleep(1)
-            logging.info('Sent test results to master')
+            logging.info('Sent test results to control')
         else:
             logging.info('Not expected to send results')
 
 
-class CPSlaveError(Exception):
+class CPWorkerError(Exception):
 
     def __init__(self, message):
-        super(CPSlaveError, self).__init__(message)
+        super(CPWorkerError, self).__init__(message)
         self.message = message

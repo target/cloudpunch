@@ -38,10 +38,10 @@ setup(name='cloudpunch',
       ],
       packages=[
           'cloudpunch',
-          'cloudpunch.master',
+          'cloudpunch.control',
           'cloudpunch.ostlib',
-          'cloudpunch.slave',
-          'cloudpunch.utils'
+          'cloudpunch.utils',
+          'cloudpunch.worker'
       ],
       include_package_data=True,
       install_requires=read_reqs('requirements.txt'),

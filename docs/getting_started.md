@@ -15,13 +15,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
 
 - Local Machine
     - Python 2.7
-    - PIP: tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient, python-glanceclient, python-swiftclient, plotly
-    - Packages: none
-
-
-- Master (OpenStack image)
-    - Python 2.7
-    - PIP: flask, requests
+    - PIP: flask, requests, tabulate, futures, pyyaml, python-keystoneclient, python-novaclient, python-neutronclient, python-cinderclient, python-glanceclient, python-swiftclient, plotly
     - Packages: none
 
 
@@ -48,8 +42,8 @@ The OpenStack image used should contain all required software for the best stagi
     - python-glanceclient - handles interaction with OpenStack glance
     - python-swiftclient - handles interaction with OpenStack swift
     - plotly - graphs over time results
-    - flask - runs master server's API
-    - requests - handles API calls to master server
+    - flask - runs control server's API
+    - requests - handles API calls to control server
     - xmltodict - modifies the jmeter XML file
     - gunicorn - runs as a web server for jmeter tests
     - kafka - sends test metrics to Kafka
@@ -96,8 +90,6 @@ The environment file is also a JSON or YAML file but instead is used to determin
 
 ```yaml
 image_name: CentOS-7
-master:
-  flavor: m1.small
 server:
   flavor: m1.small
 client:

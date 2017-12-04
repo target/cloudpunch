@@ -152,7 +152,7 @@ To manually start a test use the `--manual` command-line option. After staging t
 
 ```
 2016-08-04 13:18:08 INFO All instances registered
-2016-08-04 13:18:08 INFO Sent configuration to master
+2016-08-04 13:18:08 INFO Sent configuration to local control server
 Press enter to start test
 ```
 
@@ -165,11 +165,11 @@ CloudPunch supports testing across OpenStack environments or regions. The setup 
 - `-r2` - The second environment or region OpenRC file.
 - `-e2` - The second environment or region environment file. This is optional. If not given, the environment file given by `-e` will be used.
 
-The master instance will be created on environment 1 or region 1 with servers while environment 2 or region 2 will contain clients.
+Environment or region 1 will host servers while environment or region 2 will host clients.
 
 ## Post Test Cleanup of Resources
 
-By default CloudPunch will cleanup resources when completed. However if cases where troubleshooting is needed or to run a test without keeping a connection alive to the master instance, you can disable this feature. Add the following to the configuration file:
+By default CloudPunch will cleanup resources when completed. However if cases where troubleshooting is needed or to run a test without keeping CloudPunch running, you can disable this feature. Add the following to the configuration file:
 
 ```yaml
 cleanup_resources: false

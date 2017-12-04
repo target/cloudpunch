@@ -227,7 +227,7 @@ def get_network_num(config, instance_name):
         first_num = (router_num - 1) * config['networks_per_router']
         return first_num + network_num
     elif config['network_mode'] == 'single-router':
-        # cloudpunch-9079364-c-master-n1-c1
+        # cloudpunch-9079364-c-r1-n1-c1
         return int(instance_name_split[4][1:])
 
 
@@ -240,11 +240,6 @@ def get_index(data, hostname):
 
 def get_role(hostname):
     name_split = hostname.split('-')
-    if name_split[2] == 'master':
-        if name_split[3][0] == 's':
-            return 'server'
-        if name_split[3][0] == 'c':
-            return 'client'
     if name_split[2] == 's':
         return 'server'
     if name_split[2] == 'c':

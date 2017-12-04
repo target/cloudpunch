@@ -25,12 +25,15 @@ from cloudpunch.ostlib import osswift
 
 class Accelerator(object):
 
-    def __init__(self, config, creds, env, manual_mode=False,
-                 cloudpunch_id=None, results_format='yaml', verify=True):
+    def __init__(self, config, creds, env, control_ip, control_port=9985, control_local='127.0.0.1',
+                 manual_mode=False, cloudpunch_id=None, results_format='yaml', verify=True):
         # Save all arguments
         self.config = config.get_config()
         self.creds = creds
         self.env = env
+        self.control_ip = control_ip
+        self.control_port = control_port
+        self.control_local = control_local
         self.manual_mode = manual_mode
         self.cloudpunch_id = cloudpunch_id
         self.results_format = results_format
@@ -40,6 +43,14 @@ class Accelerator(object):
         self.cp_id = random.randint(1000000, 9999999)
         # Base name for all resources
         self.cp_name = 'cloudpunch-%s' % self.cp_id
+
+        # Change local control connection to a valid IP
+        if self.control_local == '0.0.0.0':
+            self.control_local = '127.0.0.1'
+
+        # Add full URL to control connections
+        self.control_url = 'http://%s:%s' % (self.control_ip, self.control_port)
+        self.control_local_url = 'http://%s:%s' % (self.control_local, self.control_port)
 
         # Contains instance information
         self.instance_map = []
@@ -56,27 +67,19 @@ class Accelerator(object):
         # Resource lists. All resources created are saved in their respective list
         # These are mainly used when cleaning up resources
         self.resources = {}
-        for name in ['projects', 'users', 'containers',
-                     'networks', 'routers', 'floaters',
+        self.resources['networks'] = {
+            'server': [],
+            'client': []
+        }
+        for name in ['containers',
+                     'routers', 'floaters',
                      'instances', 'volumes', 'keypairs', 'secgroups',
                      'pools', 'pool_vips', 'members', 'monitors',
-                     'lbaas_lbs', 'lbaas_pools', 'lbaas_listeners', 'lbaas_monitors'
-                     ]:
-            if name == 'networks':
-                self.resources[name] = {
-                    'master': [],
-                    'server': [],
-                    'client': []
-                }
-            else:
-                self.resources[name] = {
-                    'env1': [],
-                    'env2': []
-                }
-
-        # Information to connect to the master instance
-        self.master_ip = None
-        self.master_url = None
+                     'lbaas_lbs', 'lbaas_pools', 'lbaas_listeners', 'lbaas_monitors']:
+            self.resources[name] = {
+                'env1': [],
+                'env2': []
+            }
 
         # Used when a flavor file is enabled
         self.current_flavor = 0
@@ -92,9 +95,9 @@ class Accelerator(object):
         try:
             # Setup all resources
             self.stage_environment()
-            # Handles waiting for the master and slave registration
-            self.connect_to_master()
-            # Sends the configuration to the master and tells it to start the test
+            # Handles waiting for the local control server and instance registration
+            self.connect_to_control()
+            # Sends the configuration to the local control server and tells it to start the test
             # It calls post_results() to make it repeatable
             self.run_test()
         except CPError as e:
@@ -137,7 +140,7 @@ class Accelerator(object):
             self.ext_networks[label].find_ext_network(self.env[label]['external_network'])
             logging.info('Attaching instances to external network %s with ID %s',
                          self.ext_networks[label].get_name(), self.ext_networks[label].get_id())
-            # Find image IDs
+            # Find image ID
             image = osimage.Image(self.sessions[label],
                                   self.creds[label].get_region(),
                                   self.env[label]['api_versions']['glance'])
@@ -150,10 +153,9 @@ class Accelerator(object):
                 self.images[label] = image.get_id(self.env[label]['image_name'], include_public=True)
             logging.info('Booting instances using image %s with ID %s',
                          image.get_name(self.images[label]), self.images[label])
-            # When split mode is enabled env1 contains the master and servers, env2 contains the clients
+            # When split mode is enabled env1 contains the servers and env2 contains the clients
             # When disabled, env1 contains everything
             if label == 'env1':
-                self.create_master(label)
                 roles = ['server']
                 if self.config['server_client_mode'] and not self.creds['env2']:
                     roles.append('client')
@@ -188,66 +190,6 @@ class Accelerator(object):
                                     self.env[label]['api_versions']['nova'])
         keypair.create(self.cp_name, self.env[label]['public_key_file'])
         self.resources['keypairs'][label].append(keypair)
-
-    def create_master(self, label):
-        # Resources related to the master will have master in the name
-        master_name = '%s-master' % self.cp_name
-
-        # Router
-        logging.info('Creating master router')
-        router = osnetwork.Router(self.sessions[label], self.creds[label].get_region(),
-                                  self.env[label]['api_versions']['neutron'])
-        router.create(master_name, self.ext_networks[label].get_id())
-        self.resources['routers'][label].append(router)
-
-        # Network
-        logging.info('Creating master network')
-        network = osnetwork.Network(self.sessions[label], self.creds[label].get_region(),
-                                    self.env[label]['api_versions']['neutron'])
-        network.create(master_name)
-        self.resources['networks']['master'].append(network)
-
-        # Subnet
-        subnet = osnetwork.Subnet(self.sessions[label], self.creds[label].get_region(),
-                                  self.env[label]['api_versions']['neutron'])
-        subnet.create(master_name, self.generate_cidr(), network.get_id(), self.env[label]['dns_nameservers'])
-        router.attach_subnet(subnet.get_id())
-
-        # Instance
-        logging.info('Creating master instance')
-        master_userdata = []
-        if type(self.env[label]['shared_userdata']) == list:
-            master_userdata.extend(self.env[label]['shared_userdata'])
-        if type(self.env[label]['master']['userdata']) == list:
-            master_userdata.extend(self.env[label]['master']['userdata'])
-        # Hard code command to run the master software
-        master_userdata.append('cloudpunch master --debug')
-        instance = oscompute.Instance(self.sessions[label], self.creds[label].get_region(),
-                                      self.env[label]['api_versions']['nova'])
-        instance.create(master_name,
-                        self.images[label],
-                        self.env[label]['master']['flavor'],
-                        network.get_id(),
-                        self.env[label]['master']['availability_zone'],
-                        self.resources['keypairs'][label][0].get_name(),
-                        self.resources['secgroups'][label][0].get_id(),
-                        self.config['retry_count'],
-                        master_userdata)
-        self.resources['instances'][label].append(instance)
-
-        # Attach floater
-        floater = osnetwork.FloatingIP(self.sessions[label], self.creds[label].get_region(),
-                                       self.env[label]['api_versions']['neutron'])
-        floater.create(self.ext_networks[label].get_id())
-        self.resources['floaters'][label].append(floater)
-        instance.add_float(floater.get_ip())
-
-        # Save information to connect to master
-        master_ips = instance.list_ips(include_networks=False)
-        self.master_ip = master_ips['fixed'][0]
-        if self.config['network_mode'] == 'full':
-            self.master_ip = master_ips['floating'][0]
-        self.master_url = 'http://%s' % master_ips['floating'][0]
 
     def stage_network(self, roles, label):
         # Setup environment when network_mode is full
@@ -285,26 +227,60 @@ class Accelerator(object):
         # Setup environment when network_mode is single-router
         elif self.config['network_mode'] == 'single-router':
             for role in roles:
+                # Create a router only on the server side
+                if role == 'server':
+                    logging.info('Creating %s router', role)
+                    router = osnetwork.Router(self.sessions[label], self.creds[label].get_region(),
+                                              self.env[label]['api_versions']['neutron'])
+                    router.create('%s-%s-r1' % self.cp_name, role[0],
+                                  self.ext_networks[label].get_id())
+                    self.resources['routers'][label].append(router)
                 # Create number of networks based on config
-                # These networks connect to the master router
+                # These networks connect to the server router
                 for network_num in range(self.config['networks_per_router']):
                     network_num += 1
-                    logging.info('Creating %s network %s of %s on master router',
+                    logging.info('Creating %s network %s of %s on server router',
                                  role, network_num, self.config['networks_per_router'])
                     network = osnetwork.Network(self.sessions[label], self.creds[label].get_region(),
                                                 self.env[label]['api_versions']['neutron'])
-                    network.create('%s-%s-master-n%s' % (self.cp_name, role[0], network_num))
+                    network.create('%s-%s-r1-n%s' % (self.cp_name, role[0], network_num))
                     self.resources['networks'][role].append(network)
 
                     # Create subnet for this network and attach to router
                     subnet = osnetwork.Subnet(self.sessions[label], self.creds[label].get_region(),
                                               self.env[label]['api_versions']['neutron'])
-                    subnet.create('%s-%s-master-n%s' % (self.cp_name, role[0], network_num),
+                    subnet.create('%s-%s-r1-n%s' % (self.cp_name, role[0], network_num),
                                   self.generate_cidr(role=role, network_num=network_num),
                                   network.get_id(), self.env[label]['dns_nameservers'])
                     self.resources['routers'][label][0].attach_subnet(subnet.get_id())
 
-        # single-network does not require a network setup
+        # Setup environment when network_mode is single-network
+        elif self.config['network_mode'] == 'single-network':
+            # Create network resources only on the server side
+            role = 'server'
+
+            # Create router
+            logging.info('Creating %s router', role)
+            router = osnetwork.Router(self.sessions[label], self.creds[label].get_region(),
+                                      self.env[label]['api_versions']['neutron'])
+            router.create('%s-%s-r1' % self.cp_name, role[0],
+                          self.ext_networks[label].get_id())
+            self.resources['routers'][label].append(router)
+
+            # Create network
+            logging.info('Creating %s network on server router', role)
+            network = osnetwork.Network(self.sessions[label], self.creds[label].get_region(),
+                                        self.env[label]['api_versions']['neutron'])
+            network.create('%s-%s-r1-n1' % (self.cp_name, role[0]))
+            self.resources['networks'][role].append(network)
+
+            # Create subnet for this network and attach to router
+            subnet = osnetwork.Subnet(self.sessions[label], self.creds[label].get_region(),
+                                      self.env[label]['api_versions']['neutron'])
+            subnet.create('%s-%s-r1-n1' % (self.cp_name, role[0]),
+                          self.generate_cidr(role=role, network_num=network_num),
+                          network.get_id(), self.env[label]['dns_nameservers'])
+            self.resources['routers'][label][0].attach_subnet(subnet.get_id())
 
     def stage_instances(self, roles, label):
         # Create list of instance data
@@ -324,10 +300,9 @@ class Accelerator(object):
     def create_instance_map(self, roles, label):
         instance_map = []
         for role in roles:
-            # network_mode full and single-router do not use the master network
-            # network_mode single-network uses the the master
+            # network_mode single-network uses the the single server network
             if self.config['network_mode'] == 'single-network':
-                networks = self.resources['networks']['master']
+                networks = self.resources['networks']['server']
             else:
                 networks = self.resources['networks'][role]
 
@@ -399,13 +374,13 @@ class Accelerator(object):
         else:
             label = 'env1'
 
-        slave_userdata = []
-        if type(self.env[label]['shared_userdata']) == list:
-            slave_userdata.extend(self.env[label]['shared_userdata'])
-        if type(self.env[label][instance_map['role']]['userdata']) == list:
-            slave_userdata.extend(self.env[label][instance_map['role']]['userdata'])
-        # Hard code command to run the slave software
-        slave_userdata.append('cloudpunch slave %s' % self.master_ip)
+        control_userdata = []
+        if isinstance(self.env[label]['shared_userdata'], list):
+            control_userdata.extend(self.env[label]['shared_userdata'])
+        if isinstance(self.env[label][instance_map['role']]['userdata'], list):
+            control_userdata.extend(self.env[label][instance_map['role']]['userdata'])
+        # Hard code command to run the control software
+        control_userdata.append('cloudpunch worker %s -p %s' % (self.control_ip, self.control_port))
 
         # Find out availability zone if there is a hostmap file
         if 'hostmap' in self.config:
@@ -437,7 +412,7 @@ class Accelerator(object):
                         instance_map['keypair'].get_name(),
                         instance_map['secgroup'].get_id(),
                         self.config['retry_count'],
-                        user_data=slave_userdata,
+                        user_data=control_userdata,
                         boot_from_vol=vol_boot)
         self.resources['instances'][label].append(instance)
 
@@ -464,7 +439,7 @@ class Accelerator(object):
             # Attach volume to instance
             instance.attach_volume(volume.get_id())
 
-        # Only network_mode full puts floating IP addresses on slaves
+        # Only network_mode full puts floating IP addresses on controls
         if self.config['network_mode'] == 'full':
             # Allocate a floating IP address
             floater = osnetwork.FloatingIP(self.sessions[label], self.creds[label].get_region(),
@@ -545,7 +520,6 @@ class Accelerator(object):
 
     def generate_cidr(self, role='server', router_num=0, network_num=0):
         # To keep network address generation simple, they are generated inside octets
-        # The master subet uses 10.0.0.0
         # Client networks start at 128
         if self.config['network_mode'] == 'full':
             if role == 'client':
@@ -565,14 +539,14 @@ class Accelerator(object):
             if 'loadbalancers' not in self.config:
                 self.config['loadbalancers'] = {}
             if self.config['network_mode'] == 'single-network':
-                lb_list = [None] * len(self.resources['networks']['master'])
-                networks = self.resources['networks']['master']
+                lb_list = [None] * len(self.resources['networks']['server'])
+                networks = self.resources['networks']['server']
             else:
                 lb_list = [None] * len(self.resources['networks'][role])
                 networks = self.resources['networks'][role]
             for network in networks:
                 if self.config['network_mode'] == 'single-network':
-                    name = '%s-master-%s' % (self.cp_name, role[0])
+                    name = '%s-server-%s' % (self.cp_name, role[0])
                 else:
                     name = network.get_name()
                 subnet_id = network.list_subnets()[0]
@@ -690,7 +664,7 @@ class Accelerator(object):
             first_num = (router_num - 1) * self.config['networks_per_router']
             return first_num + network_num
         elif self.config['network_mode'] == 'single-router':
-            # cloudpunch-9079364-c-master-n1
+            # cloudpunch-9079364-c-r1-n1
             return int(network_name_split[4][1:])
 
     def stage_swift(self, roles, label):
@@ -722,32 +696,32 @@ class Accelerator(object):
         logging.info('Environment Details\n%s',
                      tabulate(table, headers='firstrow', tablefmt='psql'))
 
-    def connect_to_master(self):
-        # Wait for master server to be ready
+    def connect_to_control(self):
+        # Wait for control server to be ready
         status = 0
         for num in range(self.config['retry_count']):
-            logging.info('Attempting to connect to master instance. Retry %s of %s',
+            logging.info('Attempting to connect to local control instance. Retry %s of %s',
                          num + 1, self.config['retry_count'])
             try:
-                request = requests.get('%s/api/system/health' % self.master_url, timeout=3)
+                request = requests.get('%s/api/system/health' % self.control_local_url, timeout=3)
                 status = request.status_code
             except requests.exceptions.RequestException:
                 status = 0
             if status == 200:
-                logging.info('Connected successfully to master instance')
+                logging.info('Connected successfully to local control server')
                 break
             time.sleep(5)
         if status != 200:
-            raise CPError('Unable to connect to master instance. Aborting')
+            raise CPError('Unable to connect to local control server. Aborting')
 
-        # Wait for all servers to register to master server
+        # Wait for all servers to register to control server
         registered_servers = 0
         total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2']) - 1
         for num in range(self.config['retry_count']):
             logging.info('Waiting for all instances to register. %s of %s registered. Retry %s of %s',
                          registered_servers, total_servers, num + 1, self.config['retry_count'])
             try:
-                request = requests.get('%s/api/register' % self.master_url, timeout=3)
+                request = requests.get('%s/api/register' % self.control_local_url, timeout=3)
                 response = json.loads(request.text)
                 registered_servers = response['count']
                 if registered_servers == total_servers:
@@ -774,7 +748,7 @@ class Accelerator(object):
                                      percent_registered, threshold)
 
             except requests.exceptions.RequestException:
-                logging.info('Failed connection to master instance, trying again')
+                logging.info('Failed connection to local control server, trying again')
             time.sleep(5)
         if registered_servers != total_servers:
             raise CPError('Not all instances registered. Aborting')
@@ -805,7 +779,7 @@ class Accelerator(object):
             status = 0
             while status != 200:
                 try:
-                    request = requests.get('%s/api/register' % self.master_url, timeout=3)
+                    request = requests.get('%s/api/register' % self.control_local_url, timeout=3)
                     status = request.status_code
                     response = json.loads(request.text)
                     registered_servers = response['count']
@@ -848,7 +822,7 @@ class Accelerator(object):
             # Show the environment again
             self.show_environment()
             # Restart registration process
-            self.connect_to_master()
+            self.connect_to_control()
             return 'abort'
 
         # Ignore
@@ -871,9 +845,6 @@ class Accelerator(object):
         # Copy the instance resource list
         missing_instances = list(self.resources['instances']['env1']) + list(self.resources['instances']['env2'])
         for instance_obj in list(self.resources['instances']['env1']) + list(self.resources['instances']['env2']):
-            # This is to find the master instance
-            if len(instance_obj.get_name().split('-')) == 3:
-                missing_instances.remove(instance_obj)
             for instance in instances:
                 # Provided instances are ones that are good. Remove them from new list
                 if instance['hostname'] == instance_obj.get_name():
@@ -882,22 +853,22 @@ class Accelerator(object):
         return missing_instances
 
     def run_test(self):
-        # Send configuration over to master
+        # Send configuration over to control
         status = 0
         for num in range(self.config['retry_count']):
             try:
-                request = requests.post('%s/api/config' % self.master_url, json=self.config, timeout=3)
+                request = requests.post('%s/api/config' % self.control_local_url, json=self.config, timeout=3)
                 status = request.status_code
             except requests.exceptions.RequestException:
                 status = 0
             if status == 200:
-                logging.info('Sent configuration to master')
+                logging.info('Sent configuration to local control server')
                 break
-            logging.info('Failed to send configuration to master. Retry %s of %s',
+            logging.info('Failed to send configuration to local control server. Retry %s of %s',
                          num + 1, self.config['retry_count'])
             time.sleep(1)
         if status != 200:
-            raise CPError('Failed to send configuration to master. Aborting')
+            raise CPError('Failed to send configuration to local control server. Aborting')
 
         # Wait for user input if manual_mode is enabled
         if self.manual_mode:
@@ -905,23 +876,23 @@ class Accelerator(object):
 
         logging.info('Starting test')
 
-        # Tell master to match servers and clients
+        # Tell control to match servers and clients
         # This also signals the start of the test
         status = 0
         for num in range(self.config['retry_count']):
             try:
-                request = requests.get('%s/api/test/match' % self.master_url, timeout=3)
+                request = requests.get('%s/api/test/match' % self.control_local_url, timeout=3)
                 status = request.status_code
             except requests.exceptions.RequestException:
                 status = 0
             if status == 200:
-                logging.info('Signaled master to start test')
+                logging.info('Signaled local control server to start test')
                 break
-            logging.info('Failed to signal master to start test. Retry %s of %s',
+            logging.info('Failed to signal local control server to start test. Retry %s of %s',
                          num + 1, self.config['retry_count'])
             time.sleep(1)
         if status != 200:
-            raise CPError('Failed to signal master to start test. Aborting')
+            raise CPError('Failed to signal local control server to start test. Aborting')
 
         # Wait for tests to finish and get results
         complete_servers = 0
@@ -933,7 +904,7 @@ class Accelerator(object):
             logging.info('Checking for complete results. %s of %s instances have posted results',
                          complete_servers, total_servers)
             try:
-                request = requests.get('%s/api/test/results' % self.master_url, timeout=3)
+                request = requests.get('%s/api/test/results' % self.control_local_url, timeout=3)
                 data = json.loads(request.text)
                 complete_servers = len(data)
             except (requests.exceptions.RequestException, ValueError):
@@ -945,23 +916,23 @@ class Accelerator(object):
         self.post_results()
 
     def post_results(self):
-        # Get results from master instance
+        # Get results from control instance
         status = 0
         for num in range(self.config['retry_count']):
             try:
-                request = requests.get('%s/api/test/results' % self.master_url, timeout=3)
+                request = requests.get('%s/api/test/results' % self.control_local_url, timeout=3)
                 status = request.status_code
                 results = request.text
             except requests.exceptions.RequestException:
                 status = 0
             if status == 200:
-                logging.info('Got results from master')
+                logging.info('Got results from local control server')
                 break
-            logging.info('Failed to get results from master. Retry %s of %s',
+            logging.info('Failed to get results from local control server. Retry %s of %s',
                          num + 1, self.config['retry_count'])
             time.sleep(1)
         if status != 200:
-            raise CPError('Failed to get results from master. Aborting')
+            raise CPError('Failed to get results from local control server. Aborting')
 
         # Translate results to YAML if results_format is yaml
         if self.results_format == 'yaml':
@@ -991,9 +962,9 @@ class Accelerator(object):
 
         for resource in self.resources:
             if resource == 'networks':
-                roles = ['master', 'server', 'client']
+                roles = ['server', 'client']
                 if self.creds['env2']:
-                    roles = ['master', 'server'] if label == 'env1' else ['client']
+                    roles = ['server'] if label == 'env1' else ['client']
                 for role in roles:
                     if self.resources[resource][role]:
                         if resource not in cleanup_data:

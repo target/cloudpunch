@@ -3,14 +3,19 @@ A list of notable changes will be documented here
 
 ## 2.0.0 - 2017-xx-xx
 ### Added
-- All official tests now include sending metrics to Kafka. Currently, the only supported format is influxdb. See documentation for more information
+- A new parameter `-l, --listen` has been added to `cloudpunch run`. This configures the binding address of the control server
+- A new parameter `-t, --port` has been added to `cloudpunch run`. This configures the port that the control server listens on
+- A new parameter `-w, --connect` has been added to `cloudpunch run`. This configures how the workers connect to the local control server
+- All official tests now include sending metrics to Kafka. Currently the only supported format is influxdb. See documentation for more information
+- Doing cleanup search will now search for load balancers v1 and v2
 
 - Take over existing resources
 - Add testing for swift
 - Added a new `-i` option for the run command. This allows connection to an existing master to rerun tests
 
 ### Changed
-- Redis is no longer a requirement on the master server
+- The master server has been removed and now is run as a control server on the local machine
+- Slaves are now called workers. The `cloudpunch slave` command is now `cloudpunch worker`
 - Fixed cloudpunch cleanup search looping through floating ip addresses multiple times
 - All official tests now have normalized settings and results. See documentation for specifics
 - All graphs now use datetime instead of the number of seconds for the X axis
@@ -21,6 +26,7 @@ A list of notable changes will be documented here
 - The run command uses `-b FLAVOR_FILE` instead of `-f` for providing a flavor breakdown
 
 ### Removed
+- The command `cloudpunch master` has been removed. The master server is now run as a control server during the `cloudpunch run` command
 - Admin mode has been removed, CloudPunch will now only use the current user and project
 - The run command no longer has `--split`. Supplying a second OpenRC file will enable split mode
 - The run command no longer has `--reuse`. Use the new `-i` option as a replacement
