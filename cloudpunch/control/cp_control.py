@@ -240,9 +240,9 @@ def get_index(data, hostname):
 
 def get_role(hostname):
     name_split = hostname.split('-')
-    if name_split[2] == 's':
+    if name_split[5][0] == 's':
         return 'server'
-    if name_split[2] == 'c':
+    if name_split[5][0] == 'c':
         return 'client'
     return None
 
@@ -320,4 +320,6 @@ def give_results():
 
 
 def run(host, port, debug):
+    if not debug:
+        app.logger.setLevel(logging.ERROR)
     app.run(host=host, port=int(port), debug=debug)

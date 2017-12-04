@@ -263,7 +263,7 @@ class Accelerator(object):
             logging.info('Creating %s router', role)
             router = osnetwork.Router(self.sessions[label], self.creds[label].get_region(),
                                       self.env[label]['api_versions']['neutron'])
-            router.create('%s-%s-r1' % self.cp_name, role[0],
+            router.create('%s-%s-r1' % (self.cp_name, role[0]),
                           self.ext_networks[label].get_id())
             self.resources['routers'][label].append(router)
 
@@ -278,7 +278,7 @@ class Accelerator(object):
             subnet = osnetwork.Subnet(self.sessions[label], self.creds[label].get_region(),
                                       self.env[label]['api_versions']['neutron'])
             subnet.create('%s-%s-r1-n1' % (self.cp_name, role[0]),
-                          self.generate_cidr(role=role, network_num=network_num),
+                          self.generate_cidr(role=role, network_num=1),
                           network.get_id(), self.env[label]['dns_nameservers'])
             self.resources['routers'][label][0].attach_subnet(subnet.get_id())
 
