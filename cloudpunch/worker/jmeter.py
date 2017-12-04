@@ -9,9 +9,9 @@ import cloudpunch.utils.metrics as metrics
 
 from threading import Thread
 
-SLAVE_PATH = os.path.dirname(os.path.realpath(__file__))
-ORIGINAL_JMETER_FILE = '%s/jmeter-test.jmx' % SLAVE_PATH
-NEW_JMETER_FILE = '%s/generated-jmeter-test.jmx' % SLAVE_PATH
+WORKER_PATH = os.path.dirname(os.path.realpath(__file__))
+ORIGINAL_JMETER_FILE = '%s/jmeter-test.jmx' % WORKER_PATH
+NEW_JMETER_FILE = '%s/generated-jmeter-test.jmx' % WORKER_PATH
 
 METRIC_NAME = 'cloudpunch.jmeter'
 RPS_METRIC = '%s.rps' % METRIC_NAME
@@ -58,7 +58,7 @@ class CloudPunchTest(Thread):
             threads = self.config['jmeter']['gunicorn']['threads']
             logging.info('Starting the gunicorn Flask app with %s workers and %s threads',
                          workers, threads)
-            os.popen('gunicorn -D --bind 0.0.0.0:80 --pythonpath %s flaskapp:app -w %s --threads %s' % (SLAVE_PATH,
+            os.popen('gunicorn -D --bind 0.0.0.0:80 --pythonpath %s flaskapp:app -w %s --threads %s' % (WORKER_PATH,
                                                                                                         workers,
                                                                                                         threads))
             self.final_results = 'ServerMode'

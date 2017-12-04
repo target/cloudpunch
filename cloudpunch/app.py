@@ -260,7 +260,6 @@ def cp_app():
 
         # Figure out what ip address workers will connect to
         control_ip = network.find_ip_address(args.connection)
-        return
 
         # Start the control server
         logging.info('Starting control server')

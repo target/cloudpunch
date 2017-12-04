@@ -8,15 +8,15 @@ from flask import Flask, abort, request
 
 # Test configuration
 CONFIG = {}
-# Results from slaves
+# Results from workers
 RESULTS = []
-# List of all OpenStack slave instances
+# List of all OpenStack worker instances
 INSTANCES = []
-# List of all slaves with the role server
+# List of all workers with the role server
 SERVERS = []
-# List of all slaves with the role client
+# List of all workers with the role client
 CLIENTS = []
-# Currently running slaves
+# Currently running workers
 RUNNING = []
 # Signals the start of the test
 MATCHED = False

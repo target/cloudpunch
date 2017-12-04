@@ -4,8 +4,8 @@ import logging
 
 import cloudpunch.utils.config as cpc
 
-# List of offical files inside cp_slave (not test files)
-OFFICIAL_FILES = ['__init__', 'cp_slave', 'sysinfo', 'flaskapp']
+# List of offical files inside cp_worker (not test files)
+OFFICIAL_FILES = ['__init__', 'cp_worker', 'sysinfo', 'flaskapp']
 
 
 class Configuration(object):
@@ -56,9 +56,9 @@ class Configuration(object):
         # Merge default and config file
         self.final_config = cpc.merge_configs(default_config, read_config)
 
-        # Check official tests (tests in slave/)
-        slave_dir = os.path.dirname(os.path.realpath(__file__)) + '/slave'
-        files = os.listdir(slave_dir)
+        # Check official tests (tests in worker/)
+        worker_dir = os.path.dirname(os.path.realpath(__file__)) + '/worker'
+        files = os.listdir(worker_dir)
         official_tests = []
         for filename in files:
             name, extension = os.path.splitext(filename)
