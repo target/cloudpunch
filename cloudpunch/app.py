@@ -255,6 +255,9 @@ def cp_app():
                         level=numeric_level,
                         filename=args.log_file)
 
+    # Turn off Flask info messages
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
     # Run workload
     if args.workload == 'run':
 
@@ -262,7 +265,7 @@ def cp_app():
         control_ip = network.find_ip_address(args.connection)
 
         # Start the control server
-        logging.info('Starting control server')
+        logging.info('Starting control server listening on %s:%s', args.host, args.port)
         ct = threading.Thread(name='controlthread', target=controlThread, args=[args.host, args.port])
         ct.daemon = True
         ct.start()

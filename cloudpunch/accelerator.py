@@ -439,7 +439,7 @@ class Accelerator(object):
             # Attach volume to instance
             instance.attach_volume(volume.get_id())
 
-        # Only network_mode full puts floating IP addresses on controls
+        # Only network_mode full puts floating IP addresses on workers
         if self.config['network_mode'] == 'full':
             # Allocate a floating IP address
             floater = osnetwork.FloatingIP(self.sessions[label], self.creds[label].get_region(),
@@ -716,7 +716,7 @@ class Accelerator(object):
 
         # Wait for all servers to register to control server
         registered_servers = 0
-        total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2']) - 1
+        total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2'])
         for num in range(self.config['retry_count']):
             logging.info('Waiting for all instances to register. %s of %s registered. Retry %s of %s',
                          registered_servers, total_servers, num + 1, self.config['retry_count'])
@@ -896,7 +896,7 @@ class Accelerator(object):
 
         # Wait for tests to finish and get results
         complete_servers = 0
-        total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2']) - 1
+        total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2'])
         if self.config['server_client_mode'] and not self.config['servers_give_results']:
             total_servers = total_servers / 2
         logging.info('Waiting for results')

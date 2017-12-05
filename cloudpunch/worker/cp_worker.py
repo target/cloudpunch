@@ -7,6 +7,8 @@ import os
 
 import cloudpunch.utils.sysinfo as sysinfo
 
+WORKER_PATH = os.path.dirname(os.path.realpath(__file__))
+
 
 class CPWorker(object):
 
@@ -126,7 +128,7 @@ class CPWorker(object):
 
     def save_unofficial_tests(self, config):
         for unofficial_test in config['test_files']:
-            with open('%s/%s.py' % (os.path.dirname(os.path.realpath(__file__)), unofficial_test), 'w') as f:
+            with open('%s/%s.py' % (WORKER_PATH, unofficial_test), 'w') as f:
                 f.write(config['test_files'][unofficial_test])
 
     def run_test(self, config):
@@ -134,7 +136,7 @@ class CPWorker(object):
         threads = []
         # Add tests to thread list
         for test_name in config['test']:
-            module = importlib.import_module(test_name)
+            module = importlib.import_module('cloudpunch.worker.%s' % test_name)
             t = module.CloudPunchTest(config)
             threads.append(t)
 

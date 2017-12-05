@@ -321,5 +321,5 @@ def give_results():
 
 def run(host, port, debug):
     if not debug:
-        app.logger.setLevel(logging.ERROR)
+        app.logger.disabled = True
     app.run(host=host, port=int(port), debug=debug)
