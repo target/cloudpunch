@@ -1,6 +1,6 @@
 # CloudPunch Tests
 
-Tests that live under `cloudpunch/slave` will be documented here.
+Tests that live under `cloudpunch/worker` will be documented here.
 
 All metrics sent to Kafka are tagged with the following tags:
 

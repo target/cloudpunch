@@ -21,7 +21,7 @@
     - [Run Command-line Options](./configuration.md#run-command-line-options)
     - [Cleanup Command-line Options](./configuration.md#cleanup-command-line-options)
     - [Post Command-line Options](./configuration.md#post-command-line-options)
-    - [Worker Command-line Options](./configuration.md#slave-command-line-options)
+    - [Worker Command-line Options](./configuration.md#worker-command-line-options)
     - [Configuration File](./configuration.md#configuration-file)
     - [Environment Files](./configuration.md#environment-files)
     - [Hostmap Files](./configuration.md#hostmap-files)

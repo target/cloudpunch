@@ -255,8 +255,9 @@ def cp_app():
                         level=numeric_level,
                         filename=args.log_file)
 
-    # Turn off Flask info messages
+    # Turn off unwanted info messages
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    logging.getLogger('kafka').setLevel(logging.ERROR)
 
     # Run workload
     if args.workload == 'run':

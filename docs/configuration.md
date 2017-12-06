@@ -6,7 +6,7 @@ All CloudPunch configuration is given through the command-line
 
 The following options are given on the command-line when using cloudpunch
 
-- `workload` - The type of workload to run. Can be run, cleanup, post, master, or slave. These are covered below
+- `workload` - The type of workload to run. Can be run, cleanup, post, or worker. These are covered below
 
 - `-h, --help` - Show the help message and exit
 
@@ -44,6 +44,12 @@ The following options are given on the command-line when using cloudpunch run
 
 - `-i, --reuse` - Enable reuse mode by providing an existing CloudPunch run ID. This will reuse any resources that belong to this ID and adjust the environment to match the new configuration
 
+- `-l, --listen` - Local address that the control server will bind to. The default is 0.0.0.0
+
+- `-t, --port` - Local port that the control server will bind to. The default is 9985. This will populate down to the worker servers
+
+- `-w, --connect` - Provide a local interface or IP address as a hint to what the worker servers on OpenStack will connect back to when communicating with the local control server. By default CloudPunch will attempt to find an IP address based on the default gateway of the local machine. Note that this does not have to be a known IP address or DNS name from the local machine (for example: a floating IP address on OpenStack)
+
 - `--no-env` - Disables loading authentication information from the environment. Use this to force the OpenRC file over the environment
 
 - `--manual` - Enable manual test start mode. After the environment is staged and ready but before the test begins, the user must press Enter to continue. Note that this requires interactive
@@ -74,8 +80,6 @@ The following options are given on the command-line when using cloudpunch post
 
 - `results_file` - Provide the results file from a CloudPunch run
 
-- `-h, --help` - Show the help message and exit
-
 - `-f, --format` - The format to convert the processed results to. Can be json, yaml (default), table, or csv
 
 - `o, --output` - Specify an output file to save processed results to
@@ -92,21 +96,13 @@ The following options are given on the command-line when using cloudpunch post
 
 - `--open` - Open the generated HTML graph file after creation (graph format only)
 
-## Master Command-line Options
+## Worker Command-line Options
 
-The following options are given on the command-line when using cloudpunch master
+The following options are given on the command-line when using cloudpunch worker
 
-- `-l, --listen` - Local network binding to run the master on. The default is 0.0.0.0
+- `control_ip` - IP address of the control server
 
-- `-p, --port` - Local port to run the master on. The default is 80
-
-- `-d, --debug` - Enable debug mode
-
-## Slave Command-line Options
-
-The following options are given on the command-line when using cloudpunch slave
-
-- `master_ip` - IP address of the master server
+- `-p, --port` - Port of the control server. The default is 9985
 
 ## Configuration File
 
@@ -170,7 +166,7 @@ metrics:
 
 - `instances_per_network` - The number of instances to be created for each network
 
-- `test` - A list of test names to run. These test names are derived from the filenames inside `cp_slave/`. For example `iperf.py` would be "iperf"
+- `test` - A list of test names to run. These test names are derived from the filenames inside `worker/`. For example `iperf.py` would be "iperf"
 
 - `test_mode` - The type of test processing that should occur. The following options are allowed:
 
@@ -221,10 +217,6 @@ api_versions:
   nova: 2
   neutron: 2
   lbaas: 2
-master:
-  flavor: m1.small
-  availability_zone:
-  userdata:
 server:
   flavor: m1.small
   availability_zone:
@@ -291,9 +283,6 @@ secgroup_rules:
     - 22
     - 22
   - - tcp
-    - 80
-    - 80
-  - - tcp
     - 5201
     - 5201
 dns_nameservers:
@@ -321,17 +310,9 @@ external_network:
 
   - `neutron` - The version of neutron (network) to use
 
-  - 'lbaas' - The version of lbaas (loadbalancer as a service) to use
+  - `lbaas` - The version of lbaas (loadbalancer as a service) to use
 
-- `master` - Properties that apply to the master instance. The master instance is the only instance that requires a floating IP address as the local machine uses it to interact with the test environment. `master` has the following sub keys:
-
-  - `flavor` - The name of the flavor to use when creating the instance. This can be a name or ID
-
-  - `availability_zone` - The availability zone to attach the master instance to
-
-  - `userdata` - A list of commands processed by shell to run during the cloud-init process. This is used to setup the master server for specific environments
-
-- `server` - Properties that apply to the server role. The server role is a slave that is designated as a server during creation and when tests are running. `server` has the following sub keys:
+- `server` - Properties that apply to the server role. The server role is a worker that is designated as a server during creation and when tests are running. `server` has the following sub keys:
 
   - `flavor` - The name of the flavor to use when creating the instance. This must be the name and not an ID
 
@@ -389,7 +370,7 @@ external_network:
 
   - `userdata` - A list of commands processed by shell to run during the cloud-init process. This is used to setup the server role for specific environments and tests
 
-- `client` - Properties that apply to the client role. The client role is a slave that is designated as a client during creation and when tests are running. `client` has the following sub keys:
+- `client` - Properties that apply to the client role. The client role is a worker that is designated as a client during creation and when tests are running. `client` has the following sub keys:
 
   - `flavor` - The name of the flavor to use when creating the instance. This must be the name and not an ID
 

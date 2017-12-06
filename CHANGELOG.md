@@ -5,7 +5,7 @@ A list of notable changes will be documented here
 ### Added
 - A new parameter `-l, --listen` has been added to `cloudpunch run`. This configures the binding address of the control server
 - A new parameter `-t, --port` has been added to `cloudpunch run`. This configures the port that the control server listens on
-- A new parameter `-w, --connect` has been added to `cloudpunch run`. This configures how the workers connect to the local control server
+- A new parameter `-w, --connect` has been added to `cloudpunch run`. This configures how the workers connect to the local control server. The supplied value is either an IP address or interface name
 - All official tests now include sending metrics to Kafka. Currently the only supported format is influxdb. See documentation for more information
 - Doing cleanup search will now search for load balancers v1 and v2
 

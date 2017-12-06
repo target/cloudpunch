@@ -5,8 +5,7 @@
 - Access to OpenStack cloud (admin access optional)
 - Neutron networking
 - External network attached to OpenStack cloud
-- 1 available floating IP if networking mode is single-network or single-router
-- 1+n floating IPs if networking mode is full
+- n floating IPs only if networking mode is full
     - n is number of servers + clients (if server_client_mode is enabled)
 
 ## CloudPunch Prerequisites
@@ -19,7 +18,7 @@ The prerequisites for each role is as follows. Note that any tests run will prob
     - Packages: none
 
 
-- Slave (OpenStack image)
+- Worker (OpenStack image)
     - Python 2.7
     - PIP: xmltodict, gunicorn, kafka
     - Packages: none
@@ -136,7 +135,7 @@ sudo yum update -y
 curl -O https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 sudo yum install epel-release-latest-7.noarch.rpm
 sudo yum-config-manager --enable epel
-sudo yum install -y httpd gcc make gcc-c++ python-pip python-devel libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio jq
+sudo yum install -y gcc make gcc-c++ python-pip python-devel libaio librados2 librados2-devel librbd1 librbd1-devel iperf3 fio jq
 
 # Install jmeter
 sudo yum install -y java-1.8.0-openjdk

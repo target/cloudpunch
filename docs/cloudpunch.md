@@ -18,29 +18,23 @@ Framework for performance testing an OpenStack environment at scale
 
 ## Process Breakdown
 
-CloudPunch consists of three different roles:
+CloudPunch consists of two different roles:
 
  - Local Machine - The machine starting the test(s) and receiving the results outside of OpenStack.
 
- - Master - The OpenStack instance that is the communication between external and internal OpenStack. The local machine will send configuration to the master so the slaves can get it. The slaves send test(s) results back the master so the local machine can receive them.
-
- - Slave - The OpenStack instance that runs the test(s). It reports only to the master.
+ - Worker - The OpenStack instance that runs the test(s). It reports to the local machine.
 
 ##### Local Machine
 
-The local machine handles staging everything on OpenStack. It also handles cleanup when completed. Below is an overview of the process that the local machine handles. API calls to the master are included on the right side.
+The local machine handles staging everything on OpenStack. It also handles cleanup when completed. Below is an overview of the process that the local machine handles. API calls to local control server are on the right side.
 
 ![Local Machine](images/local-machine.png "CloudPunch Local Machine")
 
-##### Master
+##### Worker
 
-The master is just a flask instance hosting a web API. The master is the gateway between external and internal OpenStack. The local machine and slaves only talk to the master, never to each other.
+Workers are the instances that run the test(s). They talk to the control server to get the configuration, run the test(s), and then send the JSON results back to the control server. Below is an overview of the process that the workers handle. API calls to the control server are included on the right side.
 
-##### Slave
-
-Slaves are the instances that run the test(s). They talk to the master to get the configuration, run the test(s), and then send the JSON results back the master. Below is an overview of the process that the slaves handle. API calls to the master are included on the right side.
-
-![Slave (OpenStack)](images/slave-instance.png "CloudPunch Slave")
+![Worker (OpenStack)](images/worker.png "CloudPunch Worker")
 
 ## Network Types
 
@@ -66,7 +60,7 @@ Single router uses the instance's IP addresses and not floating IP addresses (th
 
 ## Load Balancer Network
 
-When creation of a load balancer is included in the environment file, a balancer will be created for each network. All instances on this network will be added as members to said load balancer. When full network is used, the load balancers will use floating IP addresses; all other network modes will use fixed IP addresses. See below for a diagram showing a load balancer in front of servers when using the single router network mode.
+When creation of a load balancer is included in the environment file, a load balancer will be created for each network. All instances on this network will be added as members to said load balancer. When full network is used, the load balancers will use floating IP addresses; all other network modes will use fixed IP addresses. See below for a diagram showing a load balancer in front of servers when using the single router network mode.
 
 ![Load Balanced Servers](images/loadbalancer.png "Load Balanced Servers")
 

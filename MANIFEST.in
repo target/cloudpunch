@@ -1,2 +1,2 @@
 include cloudpunch/version
-include cloudpunch/slave/jmeter-test.jmx
+include cloudpunch/worker/jmeter-test.jmx
