@@ -2,6 +2,8 @@ import logging
 
 import ceilometerclient.client as cclient
 
+import exceptions
+
 
 class BaseCeilometer(object):
 
@@ -51,7 +53,7 @@ class Alarm(BaseCeilometer):
                 return self.alarm
             return self.ceilometer.alarms.get(self.get_id())
         except AttributeError:
-            raise OSCeilometerError('No alarm supplied and no cached alarm')
+            raise exceptions.OSTLibError('No alarm supplied and no cached alarm')
 
     def get_name(self, alarm_id=None, use_cached=False):
         alarm = self.get(alarm_id, use_cached)
@@ -63,10 +65,6 @@ class Alarm(BaseCeilometer):
             for alarm in alarms:
                 if alarm['name'] == alarm_name:
                     return alarm['id']
-            raise OSCeilometerError('Alarm %s was not found' % alarm_name)
+            raise exceptions.OSTLibError('Alarm %s was not found' % alarm_name)
         alarm = self.get(use_cached=True)
         return alarm.id
-
-
-class OSCeilometerError(Exception):
-    pass

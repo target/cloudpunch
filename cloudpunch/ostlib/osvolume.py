@@ -1,6 +1,8 @@
 import time
 import logging
 
+import exceptions
+
 
 class BaseVolume(object):
 
@@ -39,13 +41,14 @@ class Volume(BaseVolume):
             if volume.status == 'available':
                 break
             elif volume.status == 'error':
-                raise OSVolumeError('Volume %s with ID %s failed to create' % (name, self.get_id()))
+                raise exceptions.OSTLibError('Volume %s with ID %s failed to create' % (name, self.get_id()))
             elif volume.status == 'creating':
                 time.sleep(1)
         volume = self.cinder.volumes.get(self.get_id())
         # Check if the volume became available
         if volume.status != 'available':
-            raise OSVolumeError('Volume %s with ID %s took too long to become available' % (name, self.get_id()))
+            raise exceptions.OSTLibError('Volume %s with ID %s took too long'
+                                         ' to become available' % (name, self.get_id()))
         logging.debug('Volume %s with ID %s is now available', name, self.get_id())
 
     def delete(self, volume_id=None, force=False):
@@ -102,7 +105,7 @@ class Volume(BaseVolume):
                 return self.volume
             return self.cinder.volumes.get(self.get_id())
         except AttributeError:
-            raise OSVolumeError('No volume supplied and no cached volume')
+            raise exceptions.OSTLibError('No volume supplied and no cached volume')
 
     def get_name(self, volume_id=None, use_cached=False):
         volume = self.get(volume_id, use_cached)
@@ -114,7 +117,7 @@ class Volume(BaseVolume):
             for volume in volumes:
                 if volume['name'] == volume_name:
                     return volume['id']
-            raise OSVolumeError('Volume %s was not found' % volume_name)
+            raise exceptions.OSTLibError('Volume %s was not found' % volume_name)
         volume = self.get(use_cached=True)
         return volume.id
 
@@ -140,13 +143,13 @@ class Snapshot(BaseVolume):
             if snapshot.status == 'available':
                 break
             elif snapshot.status == 'error':
-                raise OSVolumeError('Volume snapshot %s with ID %s failed to create' % (name, self.get_id()))
+                raise exceptions.OSTLibError('Volume snapshot %s with ID %s failed to create' % (name, self.get_id()))
             time.sleep(1)
         snapshot = self.cinder.volume_snapshots.get(self.get_id())
         # Check if the snapshot became available
         if snapshot.status != 'available':
-            raise OSVolumeError('Volume snapshot %s with ID %s took too long to become available' % (name,
-                                                                                                     self.get_id()))
+            raise exceptions.OSTLibError('Volume snapshot %s with ID %s took'
+                                         ' too long to become available' % (name, self.get_id()))
         logging.debug('Volume snapshot %s with ID %s is now available', name, self.get_id())
 
     def delete(self, snapshot_id=None, force=False):
@@ -196,7 +199,7 @@ class Snapshot(BaseVolume):
                 return self.snapshot
             return self.cinder.volume_snapshots.get(self.get_id())
         except AttributeError:
-            raise OSVolumeError('No volume snapshot supplied no cached volume snapshot')
+            raise exceptions.OSTLibError('No volume snapshot supplied no cached volume snapshot')
 
     def get_name(self, snapshot_id=None, use_cached=False):
         snapshot = self.get(snapshot_id, use_cached)
@@ -208,7 +211,7 @@ class Snapshot(BaseVolume):
             for snapshot in snapshots:
                 if snapshot['name'] == snapshot_name:
                     return snapshot['id']
-            raise OSVolumeError('Snapshot %s was not found' % snapshot_name)
+            raise exceptions.OSTLibError('Snapshot %s was not found' % snapshot_name)
         snapshot = self.get(use_cached=True)
         return snapshot.id
 
@@ -238,12 +241,13 @@ class Backup(BaseVolume):
             if backup.status == 'available':
                 break
             elif backup.status == 'error':
-                raise OSVolumeError('Volume backup %s with ID %s failed to create' % (name, self.get_id()))
+                raise exceptions.OSTLibError('Volume backup %s with ID %s failed to create' % (name, self.get_id()))
             time.sleep(1)
         backup = self.cinder.backups.get(self.get_id())
         # Check if the backup became available
         if backup.status != 'available':
-            raise OSVolumeError('Volume backup %s with ID %s took too long to become available' % (name, self.get_id()))
+            raise exceptions.OSTLibError('Volume backup %s with ID %s took'
+                                         ' too long to become available' % (name, self.get_id()))
         logging.debug('Volume backup %s with ID %s is now available', name, self.get_id())
 
     def delete(self, backup_id=None, force=False):
@@ -316,7 +320,7 @@ class Backup(BaseVolume):
                 return self.backup
             return self.cinder.backups.get(self.get_id())
         except AttributeError:
-            raise OSVolumeError('No volume backup supplied no cached volume backup')
+            raise exceptions.OSTLibError('No volume backup supplied no cached volume backup')
 
     def get_name(self, backup_id=None, use_cached=False):
         backup = self.get(backup_id, use_cached)
@@ -328,7 +332,7 @@ class Backup(BaseVolume):
             for backup in backups:
                 if backup['name'] == backup_name:
                     return backup['id']
-            raise OSVolumeError('Backup %s was not found' % backup_name)
+            raise exceptions.OSTLibError('Backup %s was not found' % backup_name)
         backup = self.get(use_cached=True)
         return backup.id
 
@@ -345,10 +349,3 @@ class Quota(BaseVolume):
     def set_defaults(self, project_id):
         self.cinder.quotas.defaults(project_id)
         logging.debug('Set cinder quota to the defaults')
-
-
-class OSVolumeError(Exception):
-
-    def __init__(self, message):
-        super(OSVolumeError, self).__init__(message)
-        self.message = message

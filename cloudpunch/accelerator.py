@@ -14,6 +14,7 @@ from tabulate import tabulate
 from concurrent.futures import ThreadPoolExecutor
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+import cloudpunch.ostlib.exceptions
 from cloudpunch import cleanup
 from cloudpunch.ostlib import osuser
 from cloudpunch.ostlib import osnetwork
@@ -21,6 +22,8 @@ from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
 from cloudpunch.ostlib import osimage
 from cloudpunch.ostlib import osswift
+from cloudpunch.utils import network as netutil
+from cloudpunch.utils import exceptions
 
 
 class Accelerator(object):
@@ -100,14 +103,12 @@ class Accelerator(object):
             # Sends the configuration to the local control server and tells it to start the test
             # It calls post_results() to make it repeatable
             self.run_test()
-        except CPError as e:
+        except exceptions.CPError as e:
             if e.logtype == 'info':
                 logging.info(e.message)
             else:
                 logging.error(e.message)
-        except (oscompute.OSComputeError, osnetwork.OSNetworkError,
-                osuser.OSUserError, osvolume.OSVolumeError,
-                osimage.OSImageError, osswift.OSSwiftError) as e:
+        except cloudpunch.ostlib.exceptions.OSTLibError as e:
             logging.error(e.message)
         except KeyboardInterrupt:
             pass
@@ -698,21 +699,12 @@ class Accelerator(object):
 
     def connect_to_control(self):
         # Wait for control server to be ready
-        status = 0
-        for num in range(self.config['retry_count']):
-            logging.info('Attempting to connect to local control instance. Retry %s of %s',
-                         num + 1, self.config['retry_count'])
-            try:
-                request = requests.get('%s/api/system/health' % self.control_local_url, timeout=3)
-                status = request.status_code
-            except requests.exceptions.RequestException:
-                status = 0
-            if status == 200:
-                logging.info('Connected successfully to local control server')
-                break
-            time.sleep(5)
-        if status != 200:
-            raise CPError('Unable to connect to local control server. Aborting')
+        netutil.request_by_status(url='%s/api/system/health' % self.control_local_url,
+                                  retry_count=self.config['retry_count'],
+                                  sleep_time=1,
+                                  attempt_msg='Attempting to connect to local control instance',
+                                  success_msg='Connected successfully to local control server',
+                                  fail_msg='Unable to connect to local control server. Aborting')
 
         # Wait for all servers to register to control server
         registered_servers = 0
@@ -751,7 +743,7 @@ class Accelerator(object):
                 logging.info('Failed connection to local control server, trying again')
             time.sleep(5)
         if registered_servers != total_servers:
-            raise CPError('Not all instances registered. Aborting')
+            raise exceptions.CPError('Not all instances registered. Aborting')
 
     def start_recovery(self, total_servers):
         if self.config['recovery']['type'] == 'ask':
@@ -770,7 +762,7 @@ class Accelerator(object):
 
         # Abort
         if recovery_type == 'a':
-            raise CPError('Recovery mode is abort. Aborting', logtype='info')
+            raise exceptions.CPError('Recovery mode is abort. Aborting', logtype='info')
 
         # Rebuild
         elif recovery_type == 'r':
@@ -797,9 +789,7 @@ class Accelerator(object):
             # Get instance objects so they can be deleted
             instances = self.get_missing_instance_objects(response['instances'])
             for instance in instances:
-                instance.detach_volume()
-                instance.remove_float()
-                instance.delete_instance()
+                instance.delete()
                 # Remove them from resource list
                 for label in ['env1', 'env2']:
                     try:
@@ -854,21 +844,11 @@ class Accelerator(object):
 
     def run_test(self):
         # Send configuration over to control
-        status = 0
-        for num in range(self.config['retry_count']):
-            try:
-                request = requests.post('%s/api/config' % self.control_local_url, json=self.config, timeout=3)
-                status = request.status_code
-            except requests.exceptions.RequestException:
-                status = 0
-            if status == 200:
-                logging.info('Sent configuration to local control server')
-                break
-            logging.info('Failed to send configuration to local control server. Retry %s of %s',
-                         num + 1, self.config['retry_count'])
-            time.sleep(1)
-        if status != 200:
-            raise CPError('Failed to send configuration to local control server. Aborting')
+        netutil.request_send(url='%s/api/config' % self.control_local_url,
+                             retry_count=self.config['retry_count'],
+                             sleep_time=1,
+                             success_msg='Sent configuration to local control server',
+                             fail_msg='Failed to send configuration to local control server. Aborting')
 
         # Wait for user input if manual_mode is enabled
         if self.manual_mode:
@@ -878,21 +858,11 @@ class Accelerator(object):
 
         # Tell control to match servers and clients
         # This also signals the start of the test
-        status = 0
-        for num in range(self.config['retry_count']):
-            try:
-                request = requests.get('%s/api/test/match' % self.control_local_url, timeout=3)
-                status = request.status_code
-            except requests.exceptions.RequestException:
-                status = 0
-            if status == 200:
-                logging.info('Signaled local control server to start test')
-                break
-            logging.info('Failed to signal local control server to start test. Retry %s of %s',
-                         num + 1, self.config['retry_count'])
-            time.sleep(1)
-        if status != 200:
-            raise CPError('Failed to signal local control server to start test. Aborting')
+        netutil.request_by_status(url='%s/api/test/match' % self.control_local_url,
+                                  retry_count=self.config['retry_count'],
+                                  sleep_time=1,
+                                  success_msg='Signaled local control server to start test',
+                                  fail_msg='Failed to signal local control server to start test. Aborting')
 
         # Wait for tests to finish and get results
         complete_servers = 0
@@ -917,22 +887,13 @@ class Accelerator(object):
 
     def post_results(self):
         # Get results from control instance
-        status = 0
-        for num in range(self.config['retry_count']):
-            try:
-                request = requests.get('%s/api/test/results' % self.control_local_url, timeout=3)
-                status = request.status_code
-                results = request.text
-            except requests.exceptions.RequestException:
-                status = 0
-            if status == 200:
-                logging.info('Got results from local control server')
-                break
-            logging.info('Failed to get results from local control server. Retry %s of %s',
-                         num + 1, self.config['retry_count'])
-            time.sleep(1)
-        if status != 200:
-            raise CPError('Failed to get results from local control server. Aborting')
+        _status, results = netutil.request_by_status(url='%s/api/test/results' % self.control_local_url,
+                                                     retry_count=self.config['retry_count'],
+                                                     sleep_time=1,
+                                                     attempt_msg='',
+                                                     success_msg='Got results from local control server',
+                                                     fail_msg='Failed to get results from local control server.'
+                                                              ' Aborting')
 
         # Translate results to YAML if results_format is yaml
         if self.results_format == 'yaml':
@@ -987,11 +948,3 @@ class Accelerator(object):
                                                cleanup_resources=self.config['cleanup_resources'],
                                                verify=self.verify)
             resource_cleanup.run()
-
-
-class CPError(Exception):
-
-    def __init__(self, message, logtype='error'):
-        super(CPError, self).__init__(message)
-        self.message = message
-        self.logtype = logtype

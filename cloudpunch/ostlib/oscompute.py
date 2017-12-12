@@ -5,6 +5,8 @@ import logging
 import novaclient.client as nclient
 import novaclient.exceptions
 
+import exceptions
+
 
 class BaseCompute(object):
 
@@ -80,7 +82,7 @@ class SecGroup(BaseCompute):
                 return self.group
             return self.nova.security_groups.get(self.get_id())
         except AttributeError:
-            raise OSComputeError('No security group supplied and no cached security group')
+            raise exceptions.OSTLibError('No security group supplied and no cached security group')
 
     def get_name(self, secgroup_id=None, use_cached=False):
         group = self.get(secgroup_id, use_cached)
@@ -92,7 +94,7 @@ class SecGroup(BaseCompute):
             for secgroup in secgroups:
                 if secgroup['name'] == secgroup_name:
                     return secgroup['id']
-            raise OSComputeError('Security group %s was not found' % secgroup_name)
+            raise exceptions.OSTLibError('Security group %s was not found' % secgroup_name)
         group = self.get(use_cached=True)
         return group.id
 
@@ -137,7 +139,7 @@ class KeyPair(BaseCompute):
                 return self.keypair
             return self.nova.keypairs.get(self.get_id())
         except AttributeError:
-            raise OSComputeError('No keypair supplied and no cached keypair')
+            raise exceptions.OSTLibError('No keypair supplied and no cached keypair')
 
     def get_name(self):
         keypair = self.get(use_cached=True)
@@ -220,15 +222,15 @@ class Instance(BaseCompute):
             if srv.status.lower() == 'active':
                 break
             if srv.status.lower() == 'error':
-                raise OSComputeError('Instance %s with ID %s failed to create: %s' % (instance_name,
-                                                                                      self.get_id(),
-                                                                                      srv.fault['message']))
+                raise exceptions.OSTLibError('Instance %s with ID %s failed to create: %s' % (instance_name,
+                                                                                              self.get_id(),
+                                                                                              srv.fault['message']))
             time.sleep(2)
         srv = self.get()
         # Check if the instance is active or if the retry_count has been passed
         if srv.status.lower() != 'active':
-            raise OSComputeError('Instance %s with ID %s took too long to change to active state' % (instance_name,
-                                                                                                     self.get_id()))
+            raise exceptions.OSTLibError('Instance %s with ID %s took too long to'
+                                         ' change to active state' % (instance_name, self.get_id()))
         logging.debug('Instance %s with ID %s now in active state',
                       instance_name, self.get_id())
 
@@ -355,7 +357,7 @@ class Instance(BaseCompute):
                 return self.instance
             return self.nova.servers.get(self.get_id())
         except AttributeError:
-            raise OSComputeError('No instance supplied and no cached instance')
+            raise exceptions.OSTLibError('No instance supplied and no cached instance')
 
     def get_name(self, instance_id=None, use_cached=False):
         instance = self.get(instance_id, use_cached)
@@ -367,7 +369,7 @@ class Instance(BaseCompute):
             for instance in instances:
                 if instance['name'] == instance_name:
                     return instance['id']
-            raise OSComputeError('Instance %s was not found' % instance_name)
+            raise exceptions.OSTLibError('Instance %s was not found' % instance_name)
         instance = self.get(use_cached=True)
         return instance.id
 
@@ -384,10 +386,3 @@ class Quota(BaseCompute):
     def set_defaults(self, projects_id):
         self.nova.quotas.delete(projects_id)
         logging.debug('Set nova quota to defaults')
-
-
-class OSComputeError(Exception):
-
-    def __init__(self, message):
-        super(OSComputeError, self).__init__(message)
-        self.message = message

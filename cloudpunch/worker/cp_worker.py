@@ -211,10 +211,3 @@ class CPWorker(object):
             logging.info('Sent test results to control')
         else:
             logging.info('Not expected to send results')
-
-
-class CPWorkerError(Exception):
-
-    def __init__(self, message):
-        super(CPWorkerError, self).__init__(message)
-        self.message = message

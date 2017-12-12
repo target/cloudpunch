@@ -3,6 +3,8 @@ import logging
 
 import glanceclient.client as gclient
 
+import exceptions
+
 
 class BaseImage(object):
 
@@ -46,8 +48,8 @@ class Image(BaseImage):
             time.sleep(1)
         img = self.get(image_id)
         if img.status.lower() != 'active':
-            raise OSImageError('Image %s with ID %s took too long to change to active state' % (image.name,
-                                                                                                image.id))
+            raise exceptions.OSTLibError('Image %s with ID %s took too long to change'
+                                         ' to active state' % (image.name, image.id))
         logging.debug('Image %s with ID %s now in active state', image.name, image.id)
 
     def reactivate(self, image_id=None):
@@ -90,7 +92,7 @@ class Image(BaseImage):
                 return self.image
             return self.glance.images.get(self.get_id())
         except AttributeError:
-            raise OSImageError('No image supplied and no cached image')
+            raise exceptions.OSTLibError('No image supplied and no cached image')
 
     def get_name(self, image_id=None, use_cached=False):
         image = self.get(image_id, use_cached)
@@ -102,13 +104,6 @@ class Image(BaseImage):
             for image in images:
                 if image['name'] == image_name:
                     return image['id']
-            raise OSImageError('Image %s was not found' % image_name)
+            raise exceptions.OSTLibError('Image %s was not found' % image_name)
         image = self.get(use_cached=True)
         return image.id
-
-
-class OSImageError(Exception):
-
-    def __init__(self, message):
-        super(OSImageError, self).__init__(message)
-        self.message = message

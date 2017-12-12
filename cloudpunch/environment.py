@@ -4,6 +4,8 @@ import logging
 
 import cloudpunch.utils.config as cpc
 
+from cloudpunch.utils import exceptions
+
 
 class Environment(object):
 
@@ -121,7 +123,7 @@ class Environment(object):
         # Load configuration from file if specified
         if env_file:
             if not os.path.isfile(env_file):
-                raise EnvError('Environment config file %s not found' % env_file)
+                raise exceptions.CPError('Environment config file %s not found' % env_file)
             logging.debug('Loading environment config from file %s', env_file)
             read_config = self.loadconfig(env_file)
         else:
@@ -137,7 +139,7 @@ class Environment(object):
 
         # Error checking
         if not os.path.isfile(self.final_config['public_key_file']):
-            raise EnvError('Public key file %s does not exist' % self.final_config['public_key_file'])
+            raise exceptions.CPError('Public key file %s does not exist' % self.final_config['public_key_file'])
 
     def loadconfig(self, env_file):
         with open(env_file) as f:
@@ -145,15 +147,8 @@ class Environment(object):
         try:
             data = yaml.load(contents)
         except yaml.YAMLError as e:
-            raise EnvError(e)
+            raise exceptions.CPError(e)
         return data
 
     def get_config(self):
         return self.final_config
-
-
-class EnvError(Exception):
-
-    def __init__(self, message):
-        super(EnvError, self).__init__(message)
-        self.message = message

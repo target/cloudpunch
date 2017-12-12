@@ -6,6 +6,8 @@ import keystoneauth1.identity.v3 as kid3
 
 from keystoneclient import client as kclient
 
+import exceptions
+
 
 class Session(object):
 
@@ -25,15 +27,16 @@ class Session(object):
             self.session = kauth.session.Session(auth=identity,
                                                  verify=verify)
         except kauth.exceptions.http.Unauthorized:
-            raise OSUserError('Failed to authenticate to Keystone')
+            raise exceptions.OSTLibError('Failed to authenticate to Keystone')
         except kauth.exceptions.connection.SSLError:
-            raise OSUserError('Failed SSL verification to Keystone')
+            raise exceptions.OSTLibError('Failed SSL verification to Keystone')
         except TypeError as e:
             # This is used to catch keys that keystone auth does not accept
             if "'" in e.message:
-                raise OSUserError('Invalid auth info sent to Keystone. Was not expecting %s' % e.message[46:])
+                raise exceptions.OSTLibError('Invalid auth info sent to Keystone.'
+                                             ' Was not expecting %s' % e.message[46:])
             else:
-                raise OSUserError('Invalid auth info sent to Keystone')
+                raise exceptions.OSTLibError('Invalid auth info sent to Keystone')
 
     def get_session(self):
         return self.session
@@ -105,7 +108,7 @@ class User(BaseUser):
         user_info = []
         if project_id:
             if self.api_version == 2:
-                raise OSUserError('Cannot search for users on project on Keystone v2')
+                raise exceptions.OSTLibError('Cannot search for users on project on Keystone v2')
             assignments = self.keystone.role_assignments.list(project=project_id)
             for assignment in assignments:
                 user_info.append({
@@ -132,7 +135,7 @@ class User(BaseUser):
                 return self.user
             return self.keystone.users.get(self.get_id())
         except AttributeError:
-            raise OSUserError('No user supplied and no cached user')
+            raise exceptions.OSTLibError('No user supplied and no cached user')
 
     def get_name(self, user_id=None, use_cached=False):
         user = self.get(user_id, use_cached)
@@ -144,7 +147,7 @@ class User(BaseUser):
             for user in users:
                 if user['name'] == user_name:
                     return user['id']
-            raise OSUserError('User %s was not found' % user_name)
+            raise exceptions.OSTLibError('User %s was not found' % user_name)
         user = self.get(use_cached=True)
         return user.id
 
@@ -211,7 +214,7 @@ class Project(BaseUser):
                 elif self.api_version == 3:
                     return self.keystone.projects.get(self.get_id())
         except AttributeError:
-            raise OSUserError('No project supplied and no cached project')
+            raise exceptions.OSTLibError('No project supplied and no cached project')
 
     def get_name(self, project_id=None, use_cached=False):
         project = self.get(project_id, use_cached)
@@ -223,7 +226,7 @@ class Project(BaseUser):
             for project in projects:
                 if project['name'] == project_name:
                     return project['id']
-            raise OSUserError('Project %s was not found' % project_name)
+            raise exceptions.OSTLibError('Project %s was not found' % project_name)
         project = self.get(use_cached=True)
         return project.id
 
@@ -255,7 +258,7 @@ class Domain(BaseUser):
 
     def get(self, domain_id=None, use_cached=False):
         if self.api_version == 2:
-            raise OSUserError('Keystone v2 does not support domains')
+            raise exceptions.OSTLibError('Keystone v2 does not support domains')
         if domain_id:
             return self.keystone.domains.get(domain_id)
         try:
@@ -264,15 +267,8 @@ class Domain(BaseUser):
             else:
                 return self.keystone.domains.get(self.get_id())
         except AttributeError:
-            raise OSUserError('No domain supplied and no cached domain')
+            raise exceptions.OSTLibError('No domain supplied and no cached domain')
 
     def get_name(self, domain_id=None):
         domain = self.get(domain_id)
         return domain.name
-
-
-class OSUserError(Exception):
-
-    def __init__(self, message):
-        super(OSUserError, self).__init__(message)
-        self.message = message

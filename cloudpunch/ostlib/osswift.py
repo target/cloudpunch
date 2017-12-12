@@ -6,6 +6,8 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from swiftclient import client as sclient
 
+import exceptions
+
 # Hide warnings about making insecure connections
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -27,7 +29,7 @@ class Container(BaseSwift):
         cname = self.get(container_name)
         oname = name if name else os.path.basename(filename)
         if not os.path.isfile(filename):
-            raise OSSwiftError('File %s does not exist', filename)
+            raise exceptions.OSTLibError('File %s does not exist', filename)
         with open(filename, 'r') as f:
             self.sclient.put_object(cname,
                                     oname,
@@ -93,7 +95,7 @@ class Container(BaseSwift):
         try:
             return self.swift
         except AttributeError:
-            raise OSSwiftError('No swift container supplied and no cached container')
+            raise exceptions.OSTLibError('No swift container supplied and no cached container')
 
     def get_object(self, name, container_name=None):
         return self.sclient.get_object(self.get(container_name), name)
@@ -103,10 +105,3 @@ class Container(BaseSwift):
 
     def get_id(self):
         return self.get_name()
-
-
-class OSSwiftError(Exception):
-
-    def __init__(self, message):
-        super(OSSwiftError, self).__init__(message)
-        self.message = message

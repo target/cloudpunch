@@ -53,7 +53,7 @@ The OpenStack image used should contain all required software for the best stagi
 
 [Docker Installation](./getting_started_docker.md) (ready-to-go container)
 
-[Git Installation](./getting_started_git.md) (for development, currently only Installation method)
+[Git Installation](./getting_started_git.md) (for development or local installation)
 
 ## CloudPunch Setup
 

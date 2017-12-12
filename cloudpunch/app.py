@@ -4,6 +4,7 @@ import os
 
 import threading
 
+import cloudpunch.ostlib.exceptions
 from cloudpunch import accelerator
 from cloudpunch import cleanup
 from cloudpunch import configuration
@@ -13,6 +14,7 @@ from cloudpunch.ostlib import credentials
 from cloudpunch.control import cp_control
 from cloudpunch.worker import cp_worker
 from cloudpunch.utils import network
+from cloudpunch.utils import exceptions
 
 
 LOGFORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -273,7 +275,7 @@ def cp_app():
 
         # Verify results file format
         if args.format not in ['yaml', 'json']:
-            raise CPError('Invalid format of results file. Must be yaml or json')
+            raise exceptions.CPError('Invalid format of results file. Must be yaml or json')
 
         # Split mode means there is two sets of environment and authentication
         env2 = None
@@ -365,9 +367,7 @@ def controlThread(host, port):
 def main():
     try:
         cp_app()
-    except (CPError, configuration.ConfigError, environment.EnvError,
-            credentials.CredError, cleanup.CleanupError, post.PostExcept,
-            cp_worker.CPWorkerError, network.NetworkUtilError) as e:
+    except (exceptions.CPError, cloudpunch.ostlib.exceptions.OSTLibError) as e:
         logging.error(e.message)
     except KeyboardInterrupt:
         pass
@@ -375,13 +375,6 @@ def main():
     #     logging.error('%s: %s', type(e).__name__, e.message)
     finally:
         logging.info('Terminating CloudPunch')
-
-
-class CPError(Exception):
-
-    def __init__(self, message):
-        super(CPError, self).__init__(message)
-        self.message = message
 
 
 if __name__ == '__main__':

@@ -3,6 +3,8 @@ import time
 
 from heatclient import client as hclient
 
+import exceptions
+
 
 class BaseHeat(object):
 
@@ -36,7 +38,7 @@ class Stack(BaseHeat):
                     logging.debug('Stack %s with ID %s is now complete', name, self.get_id())
                     break
                 elif stack_status != 'CREATE_IN_PROGRESS':
-                    raise OSHeatError('Stack %s with ID %s failed to create', name, self.get_id())
+                    raise exceptions.OSTLibError('Stack %s with ID %s failed to create', name, self.get_id())
                 time.sleep(1)
 
     def delete(self, stack_id=None, timeout=60):
@@ -75,7 +77,7 @@ class Stack(BaseHeat):
                 return self.stack
             return self.heat.stacks.get(self.get_id())
         except AttributeError:
-            raise OSHeatError('No heat stack supplied and no cached heat stack')
+            raise exceptions.OSTLibError('No heat stack supplied and no cached heat stack')
 
     def get_name(self, stack_id=None, use_cached=True):
         stack = self.get(stack_id, use_cached)
@@ -87,13 +89,6 @@ class Stack(BaseHeat):
             for stack in stacks:
                 if stack['name'] == stack_name:
                     return stack['id']
-            raise OSHeatError('Heat stack %s was not found' % stack_name)
+            raise exceptions.OSTLibError('Heat stack %s was not found' % stack_name)
         stack = self.get(use_cached=True)
         return stack.id
-
-
-class OSHeatError(Exception):
-
-    def __init__(self, message):
-        super(OSHeatError, self).__init__(message)
-        self.message = message

@@ -3,6 +3,8 @@ import re
 import logging
 import getpass
 
+import exceptions
+
 
 class Credentials(object):
 
@@ -35,12 +37,12 @@ class Credentials(object):
 
         # Make sure we have something to load from
         if not openrc_file and no_env:
-            raise CredError('No OpenRC file specified and no environment flag set. No credentials to load')
+            raise exceptions.OSTLibError('No OpenRC file specified and no environment flag set. No credentials to load')
 
         # Load in OpenRC file
         if openrc_file:
             if not os.path.isfile(openrc_file):
-                raise CredError('OpenRC file %s not found' % openrc_file)
+                raise exceptions.OSTLibError('OpenRC file %s not found' % openrc_file)
             self.loadrc(openrc_file)
 
         # Load in environment if no_env is False
@@ -56,7 +58,7 @@ class Credentials(object):
 
         # Check for required credentials
         if 'auth_url' not in self.creds:
-            raise CredError('OS_AUTH_URL is missing from OpenRC file and environment')
+            raise exceptions.OSTLibError('OS_AUTH_URL is missing from OpenRC file and environment')
 
         # Check for project if admin mode is disabled
         if not use_admin:
@@ -65,7 +67,7 @@ class Credentials(object):
                 if name in self.creds:
                     found = True
             if not found:
-                raise CredError('Project information is missing from OpenRC file and environment')
+                raise exceptions.OSTLibError('Project information is missing from OpenRC file and environment')
 
         # Warn if no region_name
         if 'region_name' not in self.creds:
@@ -80,7 +82,7 @@ class Credentials(object):
         if auth_type not in self.creds:
             # Fail out if interactive is false
             if not interactive:
-                raise CredError('OS_PASSWORD and OS_TOKEN missing from OpenRC file and environment')
+                raise exceptions.OSTLibError('OS_PASSWORD and OS_TOKEN missing from OpenRC file and environment')
             # Ask user for password / token if we don't have one
             password = ''
             while len(password) == 0:
@@ -279,10 +281,3 @@ class Credentials(object):
             name or id, specifies what format to change
         """
         self.creds['user_domain_%s' % domain_format] = user_domain
-
-
-class CredError(Exception):
-
-    def __init__(self, message):
-        super(CredError, self).__init__(message)
-        self.message = message

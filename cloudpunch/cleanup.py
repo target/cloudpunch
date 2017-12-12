@@ -10,6 +10,7 @@ from cloudpunch.ostlib import osnetwork
 from cloudpunch.ostlib import oscompute
 from cloudpunch.ostlib import osvolume
 from cloudpunch.ostlib import osswift
+from cloudpunch.utils import exceptions
 
 DEFAULT_API_VERSIONS = {
     'cinder': 2,
@@ -58,14 +59,14 @@ class Cleanup(object):
         else:
             # Make sure it actually exists as a file
             if not os.path.isfile(self.cleanup_file):
-                raise CleanupError('The cleanup file %s does not exist' % self.cleanup_file)
+                raise exceptions.CPError('The cleanup file %s does not exist' % self.cleanup_file)
             # Load in cleanup_file
             with open(self.cleanup_file) as f:
                 contents = f.read()
             try:
                 cleanup_info = json.loads(contents)
             except ValueError:
-                raise CleanupError('Cleanup file %s is not a valid json format' % self.cleanup_file)
+                raise exceptions.CPError('Cleanup file %s is not a valid json format' % self.cleanup_file)
 
         if not self.dry_run:
             # Only delete resources if cleanup_resources is True
@@ -232,10 +233,3 @@ class Cleanup(object):
             if os.path.isfile(self.cleanup_file):
                 os.remove(self.cleanup_file)
                 logging.info('Removed cleanup file %s', self.cleanup_file)
-
-
-class CleanupError(Exception):
-
-    def __init__(self, message):
-        super(CleanupError, self).__init__(message)
-        self.message = message

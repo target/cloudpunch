@@ -3,6 +3,8 @@ import logging
 
 import neutronclient.v2_0.client as nclient
 
+import exceptions
+
 
 class BaseNetwork(object):
 
@@ -96,7 +98,7 @@ class SecurityGroup(BaseNetwork):
                 return self.group
             return self.neutron.show_security_group(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No security group supplied and no cached network')
+            raise exceptions.OSTLibError('No security group supplied and no cached network')
 
     def get_name(self, secgroup_id=None, use_cached=False):
         group = self.get(secgroup_id, use_cached)
@@ -108,7 +110,7 @@ class SecurityGroup(BaseNetwork):
             for secgroup in secgroups:
                 if secgroup['name'] == secgroup_name:
                     return secgroup['id']
-            raise OSNetworkError('Security group %s was not found' % secgroup_name)
+            raise exceptions.OSTLibError('Security group %s was not found' % secgroup_name)
         group = self.get(use_cached=True)
         return group['security_group']['id']
 
@@ -174,7 +176,7 @@ class Network(BaseNetwork):
                 return self.network
             return self.neutron.show_network(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No network supplied and no cached network')
+            raise exceptions.OSTLibError('No network supplied and no cached network')
 
     def get_name(self, network_id=None, use_cached=False):
         network = self.get(network_id, use_cached)
@@ -186,7 +188,7 @@ class Network(BaseNetwork):
             for network in networks:
                 if network['name'] == network_name:
                     return network['id']
-            raise OSNetworkError('Network %s was not found' % network_name)
+            raise exceptions.OSTLibError('Network %s was not found' % network_name)
         network = self.get(use_cached=True)
         return network['network']['id']
 
@@ -206,7 +208,7 @@ class ExtNetwork(BaseNetwork):
                 # This network was the first found that is marked external
                 self.ext_network = external
                 return external
-        raise OSNetworkError('Unable to find external network %s' % name)
+        raise exceptions.OSTLibError('Unable to find external network %s' % name)
 
     def list(self):
         external_info = []
@@ -223,7 +225,7 @@ class ExtNetwork(BaseNetwork):
         try:
             return self.ext_network
         except AttributeError:
-            raise OSNetworkError('No cached external network')
+            raise exceptions.OSTLibError('No cached external network')
 
     def get_name(self):
         ext_network = self.get()
@@ -278,7 +280,7 @@ class Subnet(BaseNetwork):
                 return self.subnet
             return self.neutron.show_subnet(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No subnet supplied and no cached subnet')
+            raise exceptions.OSTLibError('No subnet supplied and no cached subnet')
 
     def get_name(self, subnet_id=None, use_cached=False):
         subnet = self.get(subnet_id, use_cached)
@@ -290,7 +292,7 @@ class Subnet(BaseNetwork):
             for subnet in subnets:
                 if subnet['name'] == subnet_name:
                     return subnet['id']
-            raise OSNetworkError('Subnet %s was not found' % subnet_name)
+            raise exceptions.OSTLibError('Subnet %s was not found' % subnet_name)
         subnet = self.get(use_cached=True)
         return subnet['subnet']['id']
 
@@ -356,7 +358,7 @@ class Port(BaseNetwork):
                 return self.port
             return self.neutron.show_port(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No port supplied and no cached port')
+            raise exceptions.OSTLibError('No port supplied and no cached port')
 
     def get_name(self, port_id=None, use_cached=False):
         port = self.get(port_id, use_cached)
@@ -368,7 +370,7 @@ class Port(BaseNetwork):
             for port in ports:
                 if port['name'] == port_name:
                     return port['id']
-            raise OSNetworkError('Port %s was not found' % port_name)
+            raise exceptions.OSTLibError('Port %s was not found' % port_name)
         port = self.get(use_cached=True)
         return port['port']['id']
 
@@ -460,7 +462,7 @@ class Router(BaseNetwork):
                 return self.router
             return self.neutron.show_router(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No router supplied and no cached router')
+            raise exceptions.OSTLibError('No router supplied and no cached router')
 
     def get_name(self, router_id=None, use_cached=False):
         router = self.get(router_id, use_cached)
@@ -472,7 +474,7 @@ class Router(BaseNetwork):
             for router in routers:
                 if router['name'] == router_name:
                     return router['id']
-            raise OSNetworkError('Router %s was not found' % router_name)
+            raise exceptions.OSTLibError('Router %s was not found' % router_name)
         router = self.get(use_cached=True)
         return router['router']['id']
 
@@ -550,7 +552,7 @@ class FloatingIP(BaseNetwork):
                 return self.floating_ip
             return self.neutron.show_floatingip(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No floating ip supplied and no cached floating ip')
+            raise exceptions.OSTLibError('No floating ip supplied and no cached floating ip')
 
     def get_ip(self, floatingip_id=None, use_cached=False):
         ip = self.get(floatingip_id, use_cached)
@@ -562,7 +564,7 @@ class FloatingIP(BaseNetwork):
             for floater in floats:
                 if floater['ip'] == floating_ip:
                     return floater['id']
-            raise OSNetworkError('Floating ip address %s not found', floating_ip)
+            raise exceptions.OSTLibError('Floating ip address %s not found', floating_ip)
         else:
             ip = self.get(use_cached=True)
             return ip['floatingip']['id']
@@ -573,10 +575,11 @@ class Pool(BaseNetwork):
     def create(self, name, method, protocol, subnet_id, description=''):
         method = method.upper()
         if method not in ['ROUND_ROBIN', 'LEAST_CONNECTIONS', 'SOURCE_IP']:
-            raise OSNetworkError('%s is not a valid method. Must be ROUND_ROBIN, LEAST_CONNECTIONS, or SOURCE_IP')
+            raise exceptions.OSTLibError('%s is not a valid method. Must be ROUND_ROBIN,'
+                                         ' LEAST_CONNECTIONS, or SOURCE_IP')
         protocol = protocol.upper()
         if protocol not in ['HTTP', 'HTTPS', 'TCP']:
-            raise OSNetworkError('%s is not a valid protocol. Must be HTTP, HTTPS, or TCP' % protocol)
+            raise exceptions.OSTLibError('%s is not a valid protocol. Must be HTTP, HTTPS, or TCP' % protocol)
         pool_body = {
             'pool': {
                 'name': name,
@@ -661,7 +664,7 @@ class Pool(BaseNetwork):
                 return self.pool
             return self.neutron.show_pool(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No pool supplied and no cached pool')
+            raise exceptions.OSTLibError('No pool supplied and no cached pool')
 
     def get_name(self, pool_id=None, use_cached=False):
         pool = self.get(pool_id, use_cached)
@@ -678,7 +681,7 @@ class PoolVIP(BaseNetwork):
                session_persistence=None, connection_limit=None):
         protocol = protocol.upper()
         if protocol not in ['HTTP', 'HTTPS', 'TCP']:
-            raise OSNetworkError('%s is not a valid protocol. Must be HTTP, HTTPS, or TCP')
+            raise exceptions.OSTLibError('%s is not a valid protocol. Must be HTTP, HTTPS, or TCP')
         vip_body = {
             'vip': {
                 'name': name,
@@ -692,7 +695,7 @@ class PoolVIP(BaseNetwork):
         if session_persistence:
             session_persistence = session_persistence.upper()
             if session_persistence not in ['SOURCE_IP', 'HTTP_COOKIE', 'APP_COOKIE']:
-                raise OSNetworkError('%s is not a valid protocol. Mut be SOURCE_IP, HTTP_COOKIE, or APP_COOKIE')
+                raise exceptions.OSTLibError('%s is not a valid protocol. Mut be SOURCE_IP, HTTP_COOKIE, or APP_COOKIE')
             vip_body['vip']['session_persistence'] = session_persistence
         if connection_limit:
             vip_body['vip']['connection_limit'] = connection_limit
@@ -742,7 +745,7 @@ class PoolVIP(BaseNetwork):
                 return self.vip
             return self.neutron.show_vip(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No pool vip supplied and no cached pool vip')
+            raise exceptions.OSTLibError('No pool vip supplied and no cached pool vip')
 
     def get_vip_address(self, vip_id=None, use_cached=False):
         vip = self.get(vip_id, use_cached)
@@ -814,7 +817,7 @@ class Member(BaseNetwork):
                 return self.member
             return self.neutron.show_member(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No member supplied and no cached member')
+            raise exceptions.OSTLibError('No member supplied and no cached member')
 
     def get_id(self):
         member = self.get(use_cached=True)
@@ -827,7 +830,8 @@ class Monitor(BaseNetwork):
                http_method='GET', url_path='/', expected_codes='200'):
         monitor_type = monitor_type.upper()
         if monitor_type not in ['PING', 'TCP', 'HTTP', 'HTTPS']:
-            raise OSNetworkError('%s is not a valid monitor type. Must be PING, TCP, HTTP, or HTTPS' % monitor_type)
+            raise exceptions.OSTLibError('%s is not a valid monitor type. Must be PING,'
+                                         ' TCP, HTTP, or HTTPS' % monitor_type)
         monitor_body = {
             'health_monitor': {
                 'type': monitor_type,
@@ -838,7 +842,7 @@ class Monitor(BaseNetwork):
         }
         if monitor_type in ['HTTP', 'HTTPS']:
             if not url_path or url_path[0] != '/':
-                raise OSNetworkError('Monitor type %s requires a URL path starting with \'/\'' % monitor_type)
+                raise exceptions.OSTLibError('Monitor type %s requires a URL path starting with \'/\'' % monitor_type)
             monitor_body['health_monitor']['http_method'] = http_method
             monitor_body['health_monitor']['url_path'] = url_path
             monitor_body['health_monitor']['expected_codes'] = expected_codes
@@ -886,7 +890,7 @@ class Monitor(BaseNetwork):
                 return self.monitor
             return self.neutron.show_health_monitor(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No monitor supplied and no cached monitor')
+            raise exceptions.OSTLibError('No monitor supplied and no cached monitor')
 
     def get_id(self):
         monitor = self.get(use_cached=True)
@@ -948,7 +952,7 @@ class lbaasLB(BaseNetwork):
                 return self.lb
             return self.neutron.show_loadbalancer(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No loadbalancer supplied and no cached loadbalancer')
+            raise exceptions.OSTLibError('No loadbalancer supplied and no cached loadbalancer')
 
     def get_vip_address(self, loadbalancer_id=None, use_cached=False):
         lb = self.get(loadbalancer_id, use_cached)
@@ -973,7 +977,7 @@ class lbaasListener(BaseNetwork):
                protocol_port, description='', connection_limit=None):
         protocol = protocol.upper()
         if protocol not in ['HTTP', 'TCP']:
-            raise OSNetworkError('%s is not a valid listener protocol. Must be HTTP or TCP')
+            raise exceptions.OSTLibError('%s is not a valid listener protocol. Must be HTTP or TCP')
         listener_body = {
             'listener': {
                 'name': name,
@@ -1042,7 +1046,7 @@ class lbaasListener(BaseNetwork):
                 return self.listener
             return self.neutron.show_listener(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No listener supplied and no cached listener')
+            raise exceptions.OSTLibError('No listener supplied and no cached listener')
 
     def get_name(self, listener_id=None, use_cached=False):
         listener = self.get(listener_id, use_cached)
@@ -1058,10 +1062,11 @@ class lbaasPool(BaseNetwork):
     def create(self, name, method, protocol, loadbalancer_id, description=''):
         method = method.upper()
         if method not in ['ROUND_ROBIN', 'LEAST_CONNECTIONS', 'SOURCE_IP']:
-            raise OSNetworkError('%s is not a valid pool method. Must be ROUND_ROBIN, LEAST_CONNECTIONS, or SOURCE_IP')
+            raise exceptions.OSTLibError('%s is not a valid pool method. Must be ROUND_ROBIN,'
+                                         ' LEAST_CONNECTIONS, or SOURCE_IP')
         protocol = protocol.upper()
         if protocol not in ['TCP', 'HTTPS', 'HTTP']:
-            raise OSNetworkError('%s is not a valid protocol. Must be TCP, HTTP, or HTTPS')
+            raise exceptions.OSTLibError('%s is not a valid protocol. Must be TCP, HTTP, or HTTPS')
         pool_body = {
             'pool': {
                 'name': name,
@@ -1185,7 +1190,7 @@ class lbaasPool(BaseNetwork):
                 return self.pool
             return self.neutron.show_lbaas_pool(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No pool supplied and no cached pool')
+            raise exceptions.OSTLibError('No pool supplied and no cached pool')
 
     def get_member(self, member_id, pool_id=None):
         pool = self.get(pool_id)
@@ -1206,7 +1211,8 @@ class lbaasMonitor(BaseNetwork):
                http_method='GET', url_path='/', expected_codes='200'):
         monitor_type = monitor_type.upper()
         if monitor_type not in ['PING', 'TCP', 'HTTP', 'HTTPS']:
-            raise OSNetworkError('%s is not a valid monitor type. Must be PING, TCP, HTTP, or HTTPS' % monitor_type)
+            raise exceptions.OSTLibError('%s is not a valid monitor type. Must be PING, TCP,'
+                                         ' HTTP, or HTTPS' % monitor_type)
         monitor_body = {
             'healthmonitor': {
                 'pool_id': pool_id,
@@ -1218,7 +1224,7 @@ class lbaasMonitor(BaseNetwork):
         }
         if monitor_type in ['HTTP', 'HTTPS']:
             if not url_path or url_path[0] != '/':
-                raise OSNetworkError('Monitor type %s requires a URL path starting with \'/\'' % monitor_type)
+                raise exceptions.OSTLibError('Monitor type %s requires a URL path starting with \'/\'' % monitor_type)
             monitor_body['healthmonitor']['http_method'] = http_method
             monitor_body['healthmonitor']['url_path'] = url_path
             monitor_body['healthmonitor']['expected_codes'] = expected_codes
@@ -1275,7 +1281,7 @@ class lbaasMonitor(BaseNetwork):
                 return self.monitor
             return self.neutron.show_lbaas_healthmonitor(self.get_id())
         except AttributeError:
-            raise OSNetworkError('No monitor supplied and no cached monitor')
+            raise exceptions.OSTLibError('No monitor supplied and no cached monitor')
 
     def get_id(self):
         monitor = self.get(use_cached=True)
@@ -1294,10 +1300,3 @@ class Quota(BaseNetwork):
     def set_defaults(self, project_id):
         self.neutron.delete_quota(project_id)
         logging.debug('Set neutron quota to defaults')
-
-
-class OSNetworkError(Exception):
-
-    def __init__(self, message):
-        super(OSNetworkError, self).__init__(message)
-        self.message = message

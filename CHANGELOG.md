@@ -11,7 +11,7 @@ A list of notable changes will be documented here
 
 - Take over existing resources
 - Add testing for swift
-- Added a new `-i` option for the run command. This allows connection to an existing master to rerun tests
+- Added a new `-i` option for the run command. This allows connection to existing resources to rerun tests
 
 ### Changed
 - The master server has been removed and now is run as a control server on the local machine

@@ -8,6 +8,8 @@ import plotly.graph_objs as go
 
 from tabulate import tabulate
 
+from cloudpunch.utils import exceptions
+
 SUPPORTED_TESTS = ['fio', 'iperf', 'stress', 'ping', 'jmeter']
 SUPPORTED_FORMATS = ['json', 'yaml', 'table', 'csv', 'graph']
 
@@ -51,12 +53,12 @@ class Post(object):
     def run(self):
         # Check if results file exists
         if not os.path.isfile(self.filename):
-            raise PostExcept('Cannot find file %s' % self.filename)
+            raise exceptions.CPError('Cannot find file %s' % self.filename)
 
         # Check if format type is valid
         if self.format_type not in SUPPORTED_FORMATS:
-            raise PostExcept('%s is not a valid format type. Must be %s' % (self.format_type,
-                                                                            ', '.join(SUPPORTED_FORMATS)))
+            raise exceptions.CPError('%s is not a valid format type. Must be %s' % (self.format_type,
+                                                                                    ', '.join(SUPPORTED_FORMATS)))
 
         # Load results file
         with open(self.filename) as f:
@@ -64,15 +66,15 @@ class Post(object):
         try:
             data = yaml.load(contents)
         except yaml.YAMLError as e:
-            raise PostExcept(e)
+            raise exceptions.CPError(e)
 
         # List of tests inside the results file
         tests = data[0]['results'].keys()
 
         # Check if supplied test is in results
         if self.test and self.test not in tests:
-            raise PostExcept('Results does not contain test %s, it contains: %s' % (self.test,
-                                                                                    ', '.join(tests)))
+            raise exceptions.CPError('Results does not contain test %s, it contains: %s' % (self.test,
+                                                                                            ', '.join(tests)))
 
         # Check if this data is a summary or over time
         for test in tests:
@@ -83,7 +85,7 @@ class Post(object):
             elif isinstance(data[0]['results'][test], list):
                 self.overtime = True
             elif self.overtime:
-                raise PostExcept('Results are a mix of summary and over time, only one is allowed')
+                raise exceptions.CPError('Results are a mix of summary and over time, only one is allowed')
 
         # Process results into a list
         results = self.create_list(tests, data)
@@ -172,7 +174,7 @@ class Post(object):
                             sequence[stat] = []
                         sequence[stat].append(server['results'][test][stat])
         except KeyError:
-            raise PostExcept('Server %s has an invalid format for test %s' % (server['hostname'], test))
+            raise exceptions.CPError('Server %s has an invalid format for test %s' % (server['hostname'], test))
         return sequence
 
     def summarize_results(self, data):
@@ -289,7 +291,7 @@ class Post(object):
                 'epercent': '%s%%' % round(data['epercent'], 2),
             }
         else:
-            raise PostExcept('Unsupported test type %s' % test)
+            raise exceptions.CPError('Unsupported test type %s' % test)
         return converted
 
     def human_format(self, num):
@@ -308,7 +310,7 @@ class Post(object):
             return json.dumps(results)
         elif self.format_type in ['table', 'csv']:
             if self.overtime:
-                raise PostExcept('Table and CSV formats do not support over time results')
+                raise exceptions.CPError('Table and CSV formats do not support over time results')
             tables = []
             tests = results['mean'].keys()
             for test in tests:
@@ -361,7 +363,7 @@ class Post(object):
             return final_table
         elif self.format_type == 'graph':
             if not self.overtime:
-                raise PostExcept('Graph format does not support summary results')
+                raise exceptions.CPError('Graph format does not support summary results')
             for test in results:
                 if self.test and test != self.test:
                     continue
@@ -381,12 +383,13 @@ class Post(object):
                         elif self.fiojob:
                             if self.fiojob not in fio_tests:
                                 valid_options = ', '.join(fio_tests)
-                                raise PostExcept('Results do not have fio job %s, must be: %s' % (self.fiojob,
-                                                                                                  valid_options))
+                                raise exceptions.CPError('Results do not have fio job %s,'
+                                                         ' must be: %s' % (self.fiojob, valid_options))
                             process_test = self.fiojob
                         else:
                             valid_options = ', '.join(fio_tests)
-                            raise PostExcept('Results have multiple fio jobs (%s), supply one with -j' % valid_options)
+                            raise exceptions.CPError('Results have multiple fio jobs (%s),'
+                                                     ' supply one with -j' % valid_options)
                         for io_type in ['read', 'write']:
                             # process x axis
                             for time in results[test][server][process_test][io_type]['time']:
@@ -400,9 +403,8 @@ class Post(object):
                                 self.stat = GRAPH_DEFAULTS[test]
                             if self.stat not in results[test][server][process_test][io_type]:
                                 valid_options = ', '.join(results[test][server][process_test][io_type].keys())
-                                raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
-                                                                                                         self.stat,
-                                                                                                         valid_options))
+                                raise exceptions.CPError('%s does not have the stat %s to graph,'
+                                                         ' must be: %s' % (test, self.stat, valid_options))
                             # process y axis
                             current_seq = results[test][server][process_test][io_type][self.stat]
                             if io_type == 'read':
@@ -418,9 +420,8 @@ class Post(object):
                             self.stat = GRAPH_DEFAULTS[test]
                         if self.stat not in results[test][server]:
                             valid_options = ', '.join(results[test][server].keys())
-                            raise PostExcept('%s does not have the stat %s to graph, must be: %s' % (test,
-                                                                                                     self.stat,
-                                                                                                     valid_options))
+                            raise exceptions.CPError('%s does not have the stat %s to graph,'
+                                                     ' must be: %s' % (test, self.stat, valid_options))
                         # process y axis
                         y = results[test][server][self.stat]
                     if test == 'fio':
@@ -452,10 +453,3 @@ class Post(object):
                     filename = 'cloudpunch-%s-%s.html' % (server.split('-')[1], test)
                 plotly.offline.plot(fig, filename=filename, auto_open=self.open_graph)
                 logging.info('Created HTML graph file %s', filename)
-
-
-class PostExcept(Exception):
-
-    def __init__(self, message):
-        super(PostExcept, self).__init__(message)
-        self.message = message
