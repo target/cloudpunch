@@ -9,10 +9,6 @@ A list of notable changes will be documented here
 - All official tests now include sending metrics to Kafka. Currently the only supported format is influxdb. See documentation for more information
 - Doing cleanup search will now search for load balancers v1 and v2
 
-- Take over existing resources
-- Add testing for swift
-- Added a new `-i` option for the run command. This allows connection to existing resources to rerun tests
-
 ### Changed
 - The master server has been removed and now is run as a control server on the local machine
 - Slaves are now called workers. The `cloudpunch slave` command is now `cloudpunch worker`
@@ -29,7 +25,7 @@ A list of notable changes will be documented here
 - The command `cloudpunch master` has been removed. The master server is now run as a control server during the `cloudpunch run` command
 - Admin mode has been removed, CloudPunch will now only use the current user and project
 - The run command no longer has `--split`. Supplying a second OpenRC file will enable split mode
-- The run command no longer has `--reuse`. Use the new `-i` option as a replacement
+- The run command no longer has `--reuse`. The new control server design has removed this ability
 
 ## 1.5.0 - 2017-08-16
 ### Added

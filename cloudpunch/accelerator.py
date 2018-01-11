@@ -132,8 +132,6 @@ class Accelerator(object):
                          self.creds[label].get_creds()['region_name'])
             # Create the Keystone session
             self.sessions[label] = osuser.Session(self.creds[label], verify=self.verify).get_session()
-            # Setup security group and keypair
-            self.setup_environment(label)
             # Find the external network
             self.ext_networks[label] = osnetwork.ExtNetwork(self.sessions[label],
                                                             self.creds[label].get_region(),
@@ -154,6 +152,8 @@ class Accelerator(object):
                 self.images[label] = image.get_id(self.env[label]['image_name'], include_public=True)
             logging.info('Booting instances using image %s with ID %s',
                          image.get_name(self.images[label]), self.images[label])
+            # Setup security group and keypair
+            self.setup_environment(label)
             # When split mode is enabled env1 contains the servers and env2 contains the clients
             # When disabled, env1 contains everything
             if label == 'env1':
@@ -171,7 +171,6 @@ class Accelerator(object):
             # Setup swift
             self.stage_swift(roles, label)
 
-        logging.info('Staging complete')
         # Print a table containing hostname, internal IP, and floating IP
         self.show_environment()
 
@@ -352,7 +351,6 @@ class Accelerator(object):
         return instance_map
 
     def create_instances(self, threads, instance_map):
-        logging.info('Creating instances')
         try:
             # Start the instance creation process on OpenStack
             # ThreadPoolExecutor is used to have a specific number of instances creating at a time
@@ -700,10 +698,8 @@ class Accelerator(object):
     def connect_to_control(self):
         # Wait for control server to be ready
         netutil.request_by_status(url='%s/api/system/health' % self.control_local_url,
-                                  retry_count=self.config['retry_count'],
+                                  retry_count=10,
                                   sleep_time=1,
-                                  attempt_msg='Attempting to connect to local control instance',
-                                  success_msg='Connected successfully to local control server',
                                   fail_msg='Unable to connect to local control server. Aborting')
 
         # Wait for all servers to register to control server
@@ -717,7 +713,7 @@ class Accelerator(object):
                 response = json.loads(request.text)
                 registered_servers = response['count']
                 if registered_servers == total_servers:
-                    logging.info('All instances registered')
+                    logging.info('All have instances registered')
                     break
 
                 # Start recovery process if enabled and hit number of retries
@@ -780,7 +776,7 @@ class Accelerator(object):
                 if status != 200:
                     time.sleep(1)
             if registered_servers == total_servers:
-                logging.info('All servers registered. Stopping rebuild')
+                logging.info('All servers have registered. Stopping rebuild')
                 return 'abort'
             # Get the number of each role that are missing
             logging.info('Rebuilding %s instance(s)', total_servers - len(response['instances']))
@@ -808,7 +804,6 @@ class Accelerator(object):
             # Used to catch exceptions
             if self.exc_info:
                 raise self.exc_info[1], None, self.exc_info[2]
-            logging.info('Staging complete')
             # Show the environment again
             self.show_environment()
             # Restart registration process
@@ -845,9 +840,9 @@ class Accelerator(object):
     def run_test(self):
         # Send configuration over to control
         netutil.request_send(url='%s/api/config' % self.control_local_url,
-                             retry_count=self.config['retry_count'],
+                             json=self.config,
+                             retry_count=10,
                              sleep_time=1,
-                             success_msg='Sent configuration to local control server',
                              fail_msg='Failed to send configuration to local control server. Aborting')
 
         # Wait for user input if manual_mode is enabled
@@ -859,9 +854,9 @@ class Accelerator(object):
         # Tell control to match servers and clients
         # This also signals the start of the test
         netutil.request_by_status(url='%s/api/test/match' % self.control_local_url,
-                                  retry_count=self.config['retry_count'],
+                                  retry_count=10,
                                   sleep_time=1,
-                                  success_msg='Signaled local control server to start test',
+                                  success_msg='',
                                   fail_msg='Failed to signal local control server to start test. Aborting')
 
         # Wait for tests to finish and get results
@@ -869,7 +864,6 @@ class Accelerator(object):
         total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2'])
         if self.config['server_client_mode'] and not self.config['servers_give_results']:
             total_servers = total_servers / 2
-        logging.info('Waiting for results')
         while True:
             logging.info('Checking for complete results. %s of %s instances have posted results',
                          complete_servers, total_servers)
@@ -888,10 +882,8 @@ class Accelerator(object):
     def post_results(self):
         # Get results from control instance
         _status, results = netutil.request_by_status(url='%s/api/test/results' % self.control_local_url,
-                                                     retry_count=self.config['retry_count'],
+                                                     retry_count=10,
                                                      sleep_time=1,
-                                                     attempt_msg='',
-                                                     success_msg='Got results from local control server',
                                                      fail_msg='Failed to get results from local control server.'
                                                               ' Aborting')
 
