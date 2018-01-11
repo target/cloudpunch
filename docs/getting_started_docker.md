@@ -15,7 +15,7 @@ docker pull target/cloudpunch
 #### 3. Run Docker Image
 
 ```
-docker run -v $PWD:/opt/cloudpunch --rm -it target/cloudpunch
+docker run -v $PWD:/root --rm -it target/cloudpunch
 ```
 
 #### 4. Verify Installation
