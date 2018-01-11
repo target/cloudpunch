@@ -18,6 +18,14 @@ Framework for performance testing an OpenStack environment at scale
 
 - **JSON and YAML support** - Use a mix of JSON or YAML for both configuration and results
 
+## Docker Image Tags
+
+CloudPunch is available as the Docker image `target/cloudpunch`
+
+- `latest` - follows the CloudPunch master branch (latest stable version of CloudPunch)
+- `dev` - follows the CloudPunch dev branch (latest unstable version of CloudPunch)
+- `1.5.0` - CloudPunch release 1.5.0
+
 ## License
 
 MIT License
