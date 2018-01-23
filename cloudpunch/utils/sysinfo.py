@@ -1,5 +1,7 @@
 import os
 
+from cloudpunch.utils import network
+
 
 def hostname():
     hostname = os.popen('hostname').read()
@@ -21,8 +23,7 @@ def role():
 
 
 def ip():
-    ip = os.popen('/sbin/ip -4 -o addr show dev eth0| awk \'{split($4,a,"/");print a[1]}\'').read()
-    return ip.rstrip()
+    return network.find_ip_address()
 
 
 def floating():
