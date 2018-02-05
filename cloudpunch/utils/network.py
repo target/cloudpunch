@@ -9,7 +9,7 @@ from cloudpunch.utils import exceptions
 
 
 # Hint can be a network interface or an IP address
-def find_ip_address(hint):
+def find_ip_address(hint=None):
     intMap = {}
     ipMap = {}
     for name in interfaces():
