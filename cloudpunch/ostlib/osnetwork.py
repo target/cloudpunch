@@ -1182,6 +1182,10 @@ class lbaasPool(BaseNetwork):
             member_info.append(member['id'])
         return member_info
 
+    def list_monitors(self, pool_id=None):
+        pool = self.get(pool_id)
+        return pool['pool']['healthmonitors']
+
     def get(self, pool_id=None, use_cached=False):
         if pool_id:
             return self.neutron.show_lbaas_pool(pool_id)
@@ -1272,6 +1276,13 @@ class lbaasMonitor(BaseNetwork):
                 continue
             monitor_info.append(monitor['id'])
         return monitor_info
+
+    def list_pools(self, monitor_id=None):
+        monitor = self.get(monitor_id)
+        pools = []
+        for pool in self.get(monitor)['healthmonitor']['pools']:
+            pools.append(pool['pool_id'])
+        return pools
 
     def get(self, monitor_id=None, use_cached=False):
         if monitor_id:

@@ -17,7 +17,15 @@ DEFAULT_API_VERSIONS = {
     'neutron': 2,
     'nova': 2,
 }
-RESOURCE_ORDER = [
+SEARCH_ORDER = [
+    'lbaas_pools', 'lbaas_monitors', 'lbaas_listeners', 'lbaas_lbs',
+    'monitors', 'members', 'pool_vips', 'pools',
+    'instances', 'volumes',
+    'floaters', 'routers', 'networks',
+    'keypairs', 'secgroups',
+    'containers'
+]
+DELETE_ORDER = [
     'lbaas_monitors', 'lbaas_listeners', 'lbaas_pools', 'lbaas_lbs',
     'monitors', 'members', 'pool_vips', 'pools',
     'instances', 'volumes',
@@ -157,7 +165,7 @@ class Cleanup(object):
         region = self.creds.get_region()
         logging.info('Searching for CloudPunch resources on %s under region %s' % (location, region))
 
-        for resource in RESOURCE_ORDER:
+        for resource in SEARCH_ORDER:
             logging.info('Searching for %s', self.resource_breakdown[resource]['label'])
             resource_object = self.resource_breakdown[resource]['object']
             found_resources = []
@@ -180,6 +188,16 @@ class Cleanup(object):
                                 logging.info('Found floating ip address %s (%s)',
                                              float_object.get_id(ips['floating'][0]),
                                              ips['floating'][0])
+            elif resource == 'lbaas_monitors':
+                if 'lbaas_pools' in resources:
+                    for pool in resources['lbaas_pools']:
+                        pool_object = self.resource_breakdown['lbaas_pools']['object']
+                        found_resources += pool_object.list_monitors(pool)
+                        if self.names:
+                            for monitor_id in found_resources:
+                                logging.info('Found %s %s',
+                                             self.resource_breakdown[resource]['label'][:-1],
+                                             monitor_id)
             else:
                 for current_resource in resource_list:
                     if 'cloudpunch' in current_resource['name']:
@@ -200,7 +218,7 @@ class Cleanup(object):
         region = self.creds.get_region()
         logging.info('Cleaning up resources on %s under region %s', location, region)
 
-        for resource in RESOURCE_ORDER:
+        for resource in DELETE_ORDER:
             if resource in cleanup_info:
                 logging.info('Deleting %s', self.resource_breakdown[resource]['label'])
                 resource_object = self.resource_breakdown[resource]['object']
