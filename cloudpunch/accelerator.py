@@ -488,7 +488,7 @@ class Accelerator(object):
             return second_num + inst_num
         elif self.config['network_mode'] == 'single-network':
             # Same as above but not taking into account the number of routers or networks
-            return int(instance_name_split[3][1:])
+            return int(instance_name_split[5][1:])
 
     def get_total_instance_num(self):
         # Start with the number of instances per network
