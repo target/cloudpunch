@@ -82,6 +82,8 @@ def register_server():
     role = request.json.get('role')
     if not internal_ip or not external_ip or not hostname or not role:
         abort(400, 'Missing host data')
+    if not match_run(hostname):
+        abort(400, 'Run id does not match given id')
     instance = {
         'hostname': hostname,
         'internal_ip': internal_ip,
@@ -192,6 +194,8 @@ def test_status():
     hostname = request.json.get('hostname')
     if not hostname:
         abort(400, 'Missing hostname')
+    if not match_run(hostname):
+        abort(400, 'Run id does not match given id')
     if app.config['MATCHED']:
         # A list of servers that have asked to start the test
         # This list is reset when restarting the test
@@ -247,6 +251,13 @@ def get_role(hostname):
     return None
 
 
+def match_run(hostname):
+    hostname_run_id = hostname.split('-')[1]
+    if app.config['CONFIG']['run_id'] == int(hostname_run_id):
+        return True
+    return False
+
+
 # {
 #     'hostname': ''
 # }
@@ -260,6 +271,8 @@ def test_run():
     hostname = request.json.get('hostname')
     if not hostname:
         abort(400, 'Missing hostname')
+    if not match_run(hostname):
+        abort(400, 'Run id does not match given id')
     role = get_role(hostname)
     config = copy.deepcopy(app.config['CONFIG'])
     if not config:
@@ -315,6 +328,8 @@ def give_results():
     results = request.json.get('results')
     if not hostname or not results:
         abort(400, 'Missing hostname and result data')
+    if not match_run(hostname):
+        abort(400, 'Run id does not match given id')
     app.config['RESULTS'].append({'hostname': hostname, 'results': results})
     return json.dumps({'status': 'saved'}), 200, {'Content-Type': 'text/json; charset=utf-8'}
 

@@ -11,6 +11,7 @@ A list of notable changes will be documented here
 
 ### Changed
 - The master server has been removed and now is run as a control server on the local machine
+- The control server will only respond to workers that have the same cloudpunch run id
 - Slaves are now called workers. The `cloudpunch slave` command is now `cloudpunch worker`
 - Fixed cloudpunch cleanup search looping through floating ip addresses multiple times
 - All official tests now have normalized settings and results. See documentation for specifics
@@ -22,6 +23,7 @@ A list of notable changes will be documented here
 - The run command uses `-b FLAVOR_FILE` instead of `-f` for providing a flavor breakdown
 
 ### Removed
+- Recovery is no longer an option
 - The command `cloudpunch master` has been removed. The master server is now run as a control server during the `cloudpunch run` command
 - Admin mode has been removed, CloudPunch will now only use the current user and project
 - The run command no longer has `--split`. Supplying a second OpenRC file will enable split mode

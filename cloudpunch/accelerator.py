@@ -1,4 +1,3 @@
-import random
 import logging
 import threading
 import sys
@@ -6,7 +5,6 @@ import requests
 import json
 import yaml
 import time
-import re
 
 import glanceclient.exc
 
@@ -42,9 +40,8 @@ class Accelerator(object):
         self.results_format = results_format
         self.verify = verify
 
-        # Randomized ID used to identify the resources created by a run
-        self.cp_id = random.randint(1000000, 9999999)
         # Base name for all resources
+        self.cp_id = self.config['run_id']
         self.cp_name = 'cloudpunch-%s' % self.cp_id
 
         # Change local control connection to a valid IP
@@ -702,6 +699,13 @@ class Accelerator(object):
                                   sleep_time=1,
                                   fail_msg='Unable to connect to local control server. Aborting')
 
+        # Send configuration over to control
+        netutil.request_send(url='%s/api/config' % self.control_local_url,
+                             json=self.config,
+                             retry_count=10,
+                             sleep_time=1,
+                             fail_msg='Failed to send configuration to local control server. Aborting')
+
         # Wait for all servers to register to control server
         registered_servers = 0
         total_servers = len(self.resources['instances']['env1']) + len(self.resources['instances']['env2'])
@@ -715,105 +719,11 @@ class Accelerator(object):
                 if registered_servers == total_servers:
                     logging.info('All have instances registered')
                     break
-
-                # Start recovery process if enabled and hit number of retries
-                if self.config['recovery']['enable'] and (num + 1) == self.config['recovery']['retries']:
-                    logging.info('Recovery mode enabled and number of retries has been hit')
-                    percent_registered = float(registered_servers) / float(total_servers) * 100
-                    threshold = float(self.config['recovery']['threshold'])
-                    # Continue process if passed threshold
-                    if percent_registered >= threshold:
-                        logging.info('Percent registered (%s%%) is pass recovery threshold (%s%%)',
-                                     percent_registered, threshold)
-                        response = self.start_recovery(total_servers)
-                        if response == 'abort':
-                            # Set to all registered as to not say all instances are not registered
-                            registered_servers = total_servers
-                            break
-                    else:
-                        logging.info('Percent registered (%s%%) does not pass recovery threshold (%s%%).'
-                                     ' Not attempting recovery',
-                                     percent_registered, threshold)
-
             except requests.exceptions.RequestException:
                 logging.info('Failed connection to local control server, trying again')
             time.sleep(5)
         if registered_servers != total_servers:
             raise exceptions.CPError('Not all instances registered. Aborting')
-
-    def start_recovery(self, total_servers):
-        if self.config['recovery']['type'] == 'ask':
-            # User can enter the full word or just the first letter
-            regex = '^(r(ebuild)?|a(bort)?|i(gnore)?)$'
-            recovery_type = raw_input('Enter recovery type (rebuild, abort, ignore) ')
-            match = re.search(regex, recovery_type)
-            while not match:
-                print('Not a valid recovery type')
-                recovery_type = raw_input('Enter recovery type (rebuild, abort, ignore) ')
-                match = re.search(regex, recovery_type)
-            recovery_type = recovery_type[0]
-        else:
-            # Get the first letter of the recovery type in configuration
-            recovery_type = self.config['recovery']['type'][0]
-
-        # Abort
-        if recovery_type == 'a':
-            raise exceptions.CPError('Recovery mode is abort. Aborting', logtype='info')
-
-        # Rebuild
-        elif recovery_type == 'r':
-            logging.info('Recovery mode is rebuild. Rebuilding unregistered instances')
-            # Get an up to date instance count
-            status = 0
-            while status != 200:
-                try:
-                    request = requests.get('%s/api/register' % self.control_local_url, timeout=3)
-                    status = request.status_code
-                    response = json.loads(request.text)
-                    registered_servers = response['count']
-                except (requests.exceptions.RequestException, ValueError):
-                    status = 0
-                if status != 200:
-                    time.sleep(1)
-            if registered_servers == total_servers:
-                logging.info('All servers have registered. Stopping rebuild')
-                return 'abort'
-            # Get the number of each role that are missing
-            logging.info('Rebuilding %s instance(s)', total_servers - len(response['instances']))
-            # Delete missing instances
-            logging.info('Deleting unregistered instances')
-            # Get instance objects so they can be deleted
-            instances = self.get_missing_instance_objects(response['instances'])
-            for instance in instances:
-                instance.delete()
-                # Remove them from resource list
-                for label in ['env1', 'env2']:
-                    try:
-                        self.resources['instances'][label].remove(instance)
-                    except ValueError:
-                        pass
-            logging.info('Recreating unregistered instances')
-            # Recreate instance map with ones that are missing
-            instance_map = self.get_missing_instances(response['instances'])
-            # Start instance creation process
-            thread = threading.Thread(target=self.create_instances,
-                                      args=[self.config['instance_threads'], instance_map])
-            thread.daemon = True
-            thread.start()
-            thread.join()
-            # Used to catch exceptions
-            if self.exc_info:
-                raise self.exc_info[1], None, self.exc_info[2]
-            # Show the environment again
-            self.show_environment()
-            # Restart registration process
-            self.connect_to_control()
-            return 'abort'
-
-        # Ignore
-        elif recovery_type == 'i':
-            logging.info('Ignoring recovery')
-            return 'ignore'
 
     def get_missing_instances(self, instances):
         # Copy the original instance map
@@ -838,13 +748,6 @@ class Accelerator(object):
         return missing_instances
 
     def run_test(self):
-        # Send configuration over to control
-        netutil.request_send(url='%s/api/config' % self.control_local_url,
-                             json=self.config,
-                             retry_count=10,
-                             sleep_time=1,
-                             fail_msg='Failed to send configuration to local control server. Aborting')
-
         # Wait for user input if manual_mode is enabled
         if self.manual_mode:
             raw_input('Press enter to start test')

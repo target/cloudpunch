@@ -125,11 +125,6 @@ test:
   - ping
 test_mode: list
 test_start_delay: 0
-recovery:
-  enable: false
-  type: ask
-  threshold: 80
-  retries: 12
 metrics:
   enable: false
   topic:
@@ -175,20 +170,6 @@ metrics:
   - "concurrent" - Run the tests at the same time
 
 - `test_start_delay` - Number of seconds to wait before a test starts. If `test_mode` is "list" the delay will be applied before the start of each test. For example: wait, test, wait, test. If `test_mode` is "concurrent" the delay will be applied only before the initial start. For example: wait, all tests
-
-- `recovery` - Used to recover the environment if instance registration takes too long. `recovery` has the following sub keys:
-
-  - `enable` - If to enable recovery mode
-
-  - `type` - The type of recovery mode. The following options are allowed:
-
-    - "ask" - The user will be asked what type of recovery should happen. Rebuild (delete and recreate instances), Abort (tear down environment), or Ignore (continue on with registration)
-
-    - "rebuild" - Delete and recreate unregistered instances
-
-  - `threshold` - The percent of instances that are required to be registered for a recovery to take place
-
-  - `retries` - The number of retries before a recovery is to take place. If the threshold is not passed, recovery will be ignored
 
 - `metrics` - Used to send test metrics to Kafka while tests are running. `metrics` has the following sub keys:
 

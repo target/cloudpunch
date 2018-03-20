@@ -1,6 +1,7 @@
 import logging
 import argparse
 import os
+import random
 
 import threading
 
@@ -264,6 +265,9 @@ def cp_app():
     # Run workload
     if args.workload == 'run':
 
+        # Randomized ID used to identify the resources created by a run
+        run_id = random.randint(1000000, 9999999)
+
         # Figure out what ip address workers will connect to
         control_ip = network.find_ip_address(args.connection)
 
@@ -296,7 +300,8 @@ def cp_app():
         }
 
         # Load in configuration
-        config = configuration.Configuration(config_file=args.config_file,
+        config = configuration.Configuration(run_id,
+                                             config_file=args.config_file,
                                              output_file=args.output_file,
                                              hostmap_file=args.hostmap_file,
                                              flavor_file=args.flavor_file,

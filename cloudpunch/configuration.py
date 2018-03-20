@@ -12,7 +12,8 @@ OFFICIAL_FILES = ['__init__', 'cp_worker', 'sysinfo', 'flaskapp']
 
 class Configuration(object):
 
-    def __init__(self, config_file=None, output_file=None, hostmap_file=None, flavor_file=None, split_mode=False):
+    def __init__(self, run_id, config_file=None, output_file=None,
+                 hostmap_file=None, flavor_file=None, split_mode=False):
 
         # Hard coded default configuration
         # This should be enough to run a test without giving a config file
@@ -30,12 +31,6 @@ class Configuration(object):
             'test': ['ping'],
             'test_mode': 'list',
             'test_start_delay': 0,
-            'recovery': {
-                'enable': False,
-                'type': 'ask',
-                'threshold': 80,
-                'retries': 12
-            },
             'metrics': {
                 'enable': False,
                 'topic': '',
@@ -57,6 +52,9 @@ class Configuration(object):
 
         # Merge default and config file
         self.final_config = cpc.merge_configs(default_config, read_config)
+
+        # Add in run id
+        self.final_config['run_id'] = run_id
 
         # Check official tests (tests in worker/)
         worker_dir = os.path.dirname(os.path.realpath(__file__)) + '/worker'
@@ -148,14 +146,6 @@ class Configuration(object):
         # Check test mode
         if self.final_config['test_mode'] not in ['list', 'concurrent']:
             raise exceptions.CPError('Invalid test_mode. Must be list or concurrent')
-
-        # Check recovery mode
-        if self.final_config['recovery']['type'] not in ['ask', 'rebuild']:
-            raise exceptions.CPError('Invalid recovery type. Must be ask or rebuild')
-        if self.final_config['recovery']['threshold'] < 0:
-            raise exceptions.CPError('Invalid recovery threshold. Must be 0 or greater')
-        if self.final_config['recovery']['retries'] < 1:
-            raise exceptions.CPError('Invalid recovery retries. Must be greater than 0')
 
         # Check metrics
         if self.final_config['metrics']['enable']:

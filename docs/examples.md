@@ -176,17 +176,3 @@ cleanup_resources: false
 ```
 
 When disabled a cleanup file will instead be created that contains all the IDs of resources created. Run `cloudpunch cleanup cleanup-file.json`
-
-## Recovery from Unregistered Instances
-
-CloudPunch has the ability to rebuild unregistered instances if they take too long to register. This can be used to recover from a couple instances taking too long. To use recovery mode add the following to the config file:
-
-```yaml
-recovery:
-  enable: true
-  type: rebuild
-  threshold: 80
-  retries: 20
-```
-
-The threshold refers to how many instances are registered versus the total number. This is in a percentage so the above example would be 80% registered. Retries refers to how many retries before recovery should take place. When a recovery takes place the unregistered instances will be deleted and recreated. Note that recovery can happen indefinitely. By design there is no way to ignore unregistered instances and continue on with a test.

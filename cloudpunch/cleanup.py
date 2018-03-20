@@ -241,13 +241,14 @@ class Cleanup(object):
 
         # Update cleanup_file if there is left over resources
         if post_cleanup:
-            with open(self.cleanup_file, 'w') as f:
-                f.write(json.dumps(cleanup_info))
             logging.info('CloudPunch resources still exist on OpenStack')
-            logging.info('Saved deletion information to %s', self.cleanup_file)
+            if self.cleanup_file != 'search':
+                with open(self.cleanup_file, 'w') as f:
+                    f.write(json.dumps(cleanup_info))
+                logging.info('Saved deletion information to %s', self.cleanup_file)
         else:
             logging.info('All resources have been cleaned up')
             # Remove the file if nothing is left
-            if os.path.isfile(self.cleanup_file):
+            if self.cleanup_file != 'search' and os.path.isfile(self.cleanup_file):
                 os.remove(self.cleanup_file)
                 logging.info('Removed cleanup file %s', self.cleanup_file)
