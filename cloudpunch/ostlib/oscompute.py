@@ -214,8 +214,9 @@ class Instance(BaseCompute):
                                                      security_groups=[secgroup_id])
         logging.debug('Created instance %s with ID %s using image %s and flavor %s',
                       instance_name, self.get_id(), image_id, flavor_name)
-        logging.debug('Waiting for instance %s with ID %s to finish building',
-                      instance_name, self.get_id())
+        waitTime = 2*retry_count
+        logging.debug('Waiting %d seconds for instance %s with ID %s to finish building',
+                      waitTime, instance_name, self.get_id())
         # Wait for the instance to become active before continuing
         for _ in range(retry_count):
             srv = self.get()
