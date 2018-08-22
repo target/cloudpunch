@@ -253,6 +253,8 @@ def get_role(hostname):
 
 def match_run(hostname):
     hostname_run_id = hostname.split('-')[1]
+    if 'run_id' not in app.config['CONFIG']:
+        return False
     if app.config['CONFIG']['run_id'] == int(hostname_run_id):
         return True
     return False
