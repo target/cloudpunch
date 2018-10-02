@@ -84,9 +84,9 @@ class CloudPunchTest(Thread):
                             continue
 
                     now = data['timestamp']
-                    total_bytes = job[label]['io_bytes'] * 1000  # convert from kb to b
+                    total_bytes = job[label]['io_bytes']
                     bandwidth = job[label]['bw'] * 1000  # convert from kbps to bps
-                    latency = job[label]['lat']['mean'] / 1000  # convert from micro to milli seconds
+                    latency = job[label]['lat_ns']['mean'] / 1000000  # convert from nano to milli seconds
                     iops = job[label]['iops']
 
                     self.final_results[jobname][label].append({
