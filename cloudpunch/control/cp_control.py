@@ -152,7 +152,7 @@ def get_instance_num(config, instance_name):
         return second_num + inst_num
     elif config['network_mode'] == 'single-network':
         # Same as above but not taking into account the number of routers or network
-        return int(instance_name_split[3][1:])
+        return int(instance_name_split[5][1:])
 
 
 @app.route('/api/test/match', methods=['GET'])
@@ -236,10 +236,10 @@ def get_network_num(config, instance_name):
 
 
 def get_index(data, hostname):
-    try:
-        return next(index for (index, d) in enumerate(data) if d['hostname'] == hostname)
-    except StopIteration:
-        return -1
+    for i, d in enumerate(data):
+        if d['hostname'] == hostname:
+            return i
+    return None
 
 
 def get_role(hostname):
